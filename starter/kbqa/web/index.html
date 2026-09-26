@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>经营看板 · 问答调试台</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="dot" id="health-dot"></span>
+    <strong>经营看板 · 问答调试台</strong>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-view="chat">对话</button>
+    <button class="tab" data-view="index">知识库索引</button>
+    <button class="tab" data-view="metrics">指标</button>
+    <button class="tab" data-view="quality">数据质量</button>
+  </nav>
+  <div class="status" id="status">加载中…</div>
+</header>
+
+<div class="banner" id="llm-banner" hidden></div>
+
+<main>
+  <!-- 对话 -->
+  <section class="view active" id="view-chat">
+    <div class="chat-col">
+      <div class="panel chat-panel">
+        <div class="panel-head">
+          <span>问答</span>
+          <label class="session">
+            session
+            <input id="session-id" value="debug-1" spellcheck="false">
+          </label>
+        </div>
+        <div class="messages" id="messages">
+          <div class="empty">
+            问一句试试。例如：<code>S03 六月第二周营业额为什么这么低</code>
+          </div>
+        </div>
+        <form class="composer" id="composer">
+          <textarea id="question" rows="2" placeholder="输入问题，Enter 发送，Shift+Enter 换行"></textarea>
+          <div class="composer-actions">
+            <label class="chk"><input type="checkbox" id="use-stream" checked> 流式</label>
+            <button type="submit" id="send">发送</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="trace-col">
+      <div class="panel">
+        <div class="panel-head">
+          <span>实时追踪</span>
+          <span class="muted" id="trace-id-label">—</span>
+        </div>
+        <div class="trace" id="trace">
+          <div class="empty">发送问题后，这里会实时显示规划、检索、工具调用、提示词与耗时。</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span>历史</span></div>
+        <div class="history" id="history"><div class="empty">暂无记录</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 索引 -->
+  <section class="view" id="view-index">
+    <div class="panel">
+      <div class="panel-head">
+        <span>知识库索引</span>
+        <span class="muted" id="index-meta">—</span>
+      </div>
+      <div id="index-warnings"></div>
+      <div class="table-wrap">
+        <table id="index-table">
+          <thead>
+            <tr>
+              <th>doc_id</th><th>标题</th><th>类型</th><th>状态</th>
+              <th>生效日期</th><th>取代</th><th>块</th><th>字数</th><th>格式</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 指标 -->
+  <section class="view" id="view-metrics">
+    <div class="panel">
+      <div class="panel-head"><span>指标查询</span></div>
+      <form class="filters" id="metrics-form">
+        <label>开始 <input type="date" id="m-start" required></label>
+        <label>结束 <input type="date" id="m-end" required></label>
+        <label>门店 <select id="m-store"><option value="">全部</option></select></label>
+        <label>商品 <select id="m-product"><option value="">全部</option></select></label>
+        <button type="submit">查询</button>
+      </form>
+      <div class="cards" id="metric-cards"></div>
+      <div class="table-wrap">
+        <table id="daily-table">
+          <thead><tr><th>日期</th><th>净营业额</th><th>订单数</th><th>客单价</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 数据质量 -->
+  <section class="view" id="view-quality">
+    <div class="panel">
+      <div class="panel-head"><span>清洗台账</span></div>
+      <div id="quality-body"><div class="empty">加载中…</div></div>
+    </div>
+  </section>
+</main>
+
+<!-- 文档查看 -->
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <strong id="drawer-title">文档</strong>
+    <button id="drawer-close">关闭</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
