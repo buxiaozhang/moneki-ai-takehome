@@ -50,7 +50,7 @@ class DataTools:
             self._local.conn = None
 
     def _where(self, start: str, end: str, store_id=None, product_id=None) -> tuple[str, list]:
-        clause = ["date >= ?", "date < ?"]
+        clause = ["date >= ?", "date <= ?"]
         params: list[Any] = [start, end]
         if store_id:
             clause.append("store_id = ?")
@@ -91,21 +91,22 @@ class DataTools:
     # -- 指标 -------------------------------------------------------------------
 
     def query_metrics(self, start: str, end: str, store_id=None, product_id=None) -> dict:
-        """营业额、退款、订单数、客单价、销量。客单价 = 营业额 ÷ 明细行数。"""
+        """净营业额、退款金额、有效订单数、客单价、销量。"""
         where, params = self._where(start, end, store_id, product_id)
-        # 退款行不是营业，直接排掉，省得把营业额算少了。
         row = self.conn.execute(
             """
-            SELECT COALESCE(SUM(amount_cents), 0),
-                   0,
-                   COUNT(*),
-                   COALESCE(SUM(qty), 0)
-            FROM sales_clean WHERE %s AND is_refund = 0
+            SELECT COALESCE(SUM(CASE WHEN is_refund = 0 THEN amount_cents ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN is_refund = 1 THEN amount_cents ELSE 0 END), 0),
+                   COUNT(DISTINCT CASE WHEN is_refund = 0 THEN order_id END),
+                   COALESCE(SUM(CASE WHEN is_refund = 0 THEN qty ELSE -qty END), 0)
+            FROM sales_clean WHERE %s
             """
             % where,
             params,
         ).fetchone()
         net_cents, refund_cents, orders, qty = int(row[0]), int(row[1]), int(row[2]), int(row[3])
+        # 净营业额要把退款扣掉；退款金额取绝对值。
+        net_cents = net_cents + refund_cents
         aov = round2(Decimal(net_cents) / 100 / orders) if orders else None
         return {
             "start": start,
