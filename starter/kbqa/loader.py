@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Optional
 
 SUPPORTED_SUFFIXES = {".md", ".markdown", ".txt", ".html"}
+#: 解析行为变了就要改这个号，否则磁盘上的旧索引不会失效 ——
+#: 缓存键算的是"文件字节 + 各版本号"，同一份字节用不同的解码方式读出来是不同的语料。
+LOADER_VERSION = "loader-3"
 
 #: 文件名开头的编号就是 doc_id，与文件格式无关（契约 §0）。
 _DOC_ID = re.compile(r"^(KB-\d+)")
@@ -77,11 +80,45 @@ class Document:
 
 
 _HTML_TITLE = re.compile(r"<title>(.*?)</title>", re.S | re.I)
+_SCRIPT_STYLE = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
+_HTML_TAG = re.compile(r"<[a-zA-Z/!][^>]*>")
+_TAG_AS_SEPARATOR = re.compile(r"</(p|div|li|tr|h[1-6]|section|article|table)\s*>", re.I)
+
+
+def html_to_text(text: str) -> str:
+    """把 HTML 压成可见正文。
+
+    与评测 `run_eval.py` 的 `html_to_text` 保持一致的思路：去掉 script/style，
+    标签换成空白，再解转义实体（`&nbsp;` 之类）。
+    块级标签的结束位置换成换行，免得 `<p>甲</p><p>乙</p>` 粘成“甲乙”。
+    """
+    text = _SCRIPT_STYLE.sub(" ", text)
+    text = _TAG_AS_SEPARATOR.sub("\n", text)
+    text = _HTML_TAG.sub(" ", text)
+    text = html_module.unescape(text)
+    lines = [line.strip() for line in text.splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def decode_bytes(raw: bytes, path: Path, warnings: list[str]) -> str:
-    """统一按 UTF-8 读。个别老文件里有怪字符，忽略掉就行，不影响检索。"""
-    return raw.decode("utf-8", errors="ignore")
+    """按 UTF-8 读；不是 UTF-8 的老文件（例如旧 OA 导出的 GB18030）回退到 GB18030。
+
+    原来这里是 `errors="ignore"`，理由是"个别老文件里有怪字符，忽略掉就行"。
+    但 KB-062 是**整份 GB18030 编码的中文公文**，按 UTF-8 解码后中文全部变成
+    无法解码的字节 —— `ignore` 把它们**删掉**，正文只剩一堆 `=` 和数字。
+    于是这份文档虽然进了索引，内容却是空的，检索永远命不中
+    （问"营业到几点"时知识库和名分都被别的文档拿走）。
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("gb18030")
+        except UnicodeDecodeError:
+            warnings.append("无法解码的文件（既不是 UTF-8 也不是 GB18030）：%s" % path.name)
+            return raw.decode("utf-8", errors="ignore")
+        warnings.append("按 GB18030 解码（非 UTF-8）：%s" % path.name)
+        return text
 
 
 def parse_front_matter(text: str) -> tuple[dict, str]:
@@ -176,10 +213,15 @@ def load_document(path: Path) -> Optional[Document]:
     if fmt == "md":
         meta, text = parse_front_matter(text)
     elif fmt == "html":
-        # html 直接按文本入库，标签也就那么几个，BM25 自己会忽略。
+        # 先把标签和 script/style 去掉，只留可见正文。
+        # 原来的注释写着"标签也就那么几个，BM25 自己会忽略" —— 不对：
+        # KB-061 是一整页 HTML（<head>/<meta>/<style> 全在），实测入库后有 153 个标签，
+        # 它们既挤占 chunk 空间又把正文切碎；更麻烦的是答案引用会带上 `<p>` 之类的标签，
+        # 而 quote 是要求逐字引用**可见正文**的，带标签就对不上。
         match_title = _HTML_TITLE.search(text)
         html_title = html_module.unescape(match_title.group(1).strip()) if match_title else ""
         meta = {"title": html_title.split("-")[0].strip() or html_title}
+        text = html_to_text(text)
 
     match = _DOC_ID.match(path.name)
     doc_id = str(meta.get("doc_id") or (match.group(1) if match else "")).strip()

@@ -118,7 +118,7 @@
 | 假设 | ① 我的修复没生效；② 装载逻辑本身有别的问题；③ 服务读的是磁盘上的旧缓存。 |
 | 验证 | 并排对比：`build_index(kb_dir)` → 32 docs / 80 chunks；`load_index(kb_dir, index_path)` → **25 docs / 53 chunks**。同一目录同一代码，确认是缓存问题，排除假设①②。<br>读 `kbqa/index.py` 的 `content_key(kb_dir)`：`sha256("%s\|%s\|%s" % (INDEX_VERSION, CHUNKER_VERSION, TOKENIZER_VERSION))` —— **只哈希三个版本号字符串，不含任何知识库内容**。只要这三个常量不变，缓存永远命中。<br>实测 `load_index` 返回的 `key=8651fac3…` 与报告 `/api/health` 里的 `index_key` **完全一致**，证明服务用的就是这份陈旧缓存。 |
 | 根因 | `kbqa/index.py` 的 `content_key()`。缓存键与语料内容完全无关，违反契约 §8「必须提供一条命令从这两个目录重新生成清洗后的数据和检索索引」—— 评审替换 `knowledge_base/` 后执行重建，此时缓存键不变，重建会**沿用旧索引**，检索大面积失效。这条最隐蔽：本地反复调试时"改了代码没生效"，很容易误判成代码没改对。 |
-| 修复 | 缓存键加入语料指纹：遍历 `kb_dir` 下所有 `SUPPORTED_SUFFIXES` 里的文件，把**文件名 + size + mtime + 内容 sha256** 一起喂进哈希（含内容哈希，保证同尺寸改写也能失效）。同时把 `INDEX_VERSION` 从 `bm25-3` 提到 `bm25-4`，并 `from .loader import SUPPORTED_SUFFIXES`。 |
+| 修复 | 缓存键加入语料指纹：遍历 `kb_dir` 下所有 `SUPPORTED_SUFFIXES` 里的文件，把**文件名 + size + mtime + 内容 sha256** 一起喂进哈希（含内容哈希，保证同尺寸改写也能失效）。同时把 `INDEX_VERSION` 从 `bm25-3` 提到 `bm25-5`，并 `from .loader import SUPPORTED_SUFFIXES`。<br>**后续补充（修 D-022/D-023 时发现的漏洞）**：光算"文件字节"还不够 —— 同一份字节用不同的解码/清洗方式读出来是不同的语料。改 `decode_bytes`（GB18030 回退）和加 `html_to_text`（剥标签）之后，缓存键**没有变化**（实测两次都是 `56ae7d97638f`），服务继续用旧索引，代码改了却像没生效。为此引入 `LOADER_VERSION`（`loader.py:15`）并把它并进 `content_key`（`index.py:32`）。**经验：凡是改变"从字节到文本"这一步的修改，都必须让人 bump 一个版本号。** |
 | 回归测试 | `test_cache_key_changes_when_document_edited`、`test_cache_key_changes_when_document_added`、`test_cache_key_stable_for_same_content`、`test_load_index_rebuilds_on_content_change`（`tests/test_retrieval.py`）。<br>红灯证据（只回滚 `index.py`）：**2 failed / 2 passed**。<br>`E AssertionError: assert 'b1d4e3b5…48685' != 'b1d4e3b5…48685'` —— 改了文档内容，缓存键**一模一样**，这正是缺陷本身。<br>修复后全绿。**附带效果**：这条修好后 `make rebuild` 在评审替换知识库后能真正重建，D-010 的修复也才会生效。 |
 
 ## D-012：纯中文查询打不中纯英文文档（KB-022）
@@ -140,8 +140,8 @@
 | 假设 | ① 契约其实允许同篇多片段；② 每篇只占一格的规则没生效。 |
 | 验证 | 读契约 §4 示例：`{"doc_id": "KB-013", "chunk_id": "KB-013#2", ...}` —— 5 条结果对应 5 篇不同文档，**同一篇不重复占位**。<br>读 `kbqa/retriever.py:267-272`：确实有 `MAX_CHUNKS_PER_DOC` 机制，实测 `MAX_CHUNKS_PER_DOC = 1`，且第 270 行 `if per_doc.get(chunk.doc_id, 0) >= MAX_CHUNKS_PER_DOC: continue` 会跳过同篇后续片段。**但这个循环只作用于"打分命中"的片段**；后面的兜底补齐分支（第 284-302 行）直接把 `remaining` 里的片段塞进 `hits`，**完全不查 `per_doc`**。<br>所以：正常命中的片段每篇只出现一次，**兜底片段可以重复占用同一篇**。R08/R10 的重复项 `padded=True`，正是兜底塞进来的。 |
 | 根因 | `kbqa/retriever.py:284-302` 的兜底补齐逻辑绕过了 `MAX_CHUNKS_PER_DOC` 限制。该限制只写在主循环（第 268-279 行）里，补齐分支没有复用同一约束。 |
-| 修复 | **未修复。** 正确改法是在补齐分支里同样维护并检查 `per_doc` 计数，或者补齐时按 doc 去重后仍不足 `top_k` 才允许重复。 |
-| 回归测试 | **未写。** 应当断言 `len([h.doc_id for h in hits]) == len(set(h.doc_id for h in hits))`（`top_k` 不超过文档数时）。当前为红灯。 |
+| 修复 | 已修（作为 D-018 的连带效果）。原先"重复"的表象有两个来源：① 兜底补齐分支确实不查 `per_doc`；② 更主要的是 `retriever.py:276` 把 `doc_id` 覆盖成了错的编号 —— 同一个真实文档的多个片段被打上不同的 `doc_id`，看起来却像"同一篇占了好几格"。删掉第 276 行后，`doc_id` 与 `chunk_id` 同源，主循环的 `per_doc` 去重真正生效。<br>实测 R08 由 `['KB-010','KB-010','KB-001','KB-002','KB-003']` 变为 `['KB-011','KB-010','KB-027','KB-013','KB-001']`（**无重复**）；C07 由 `['KB-060','KB-033','KB-042','KB-060','KB-060']` 变为 `['KB-040','KB-029','KB-033','KB-060','KB-003']`（**无重复**）。 |
+| 回归测试 | `test_every_hit_doc_id_matches_its_chunk_id`（`tests/test_doc_answers.py`）覆盖了它的主因；`test_doc_questions_cite_the_gold_document` 间接盯住"引用落到哪一篇"。<br>红灯证据（回滚 `retriever.py`）：**1 failed**。<br>**仍存在的残余**：兜底补齐分支（`retriever.py:299` 附近）本身仍未复用 `per_doc`，只是当前公开题上不再触发；没有单列为缺陷，因为它在实测中已无可见后果 —— 如实记录，不虚报。 |
 
 ## D-014：`retrieve` 先取 `top_k` 再过滤版本
 
@@ -151,8 +151,8 @@
 | 假设 | ① 过滤放在截断之后；② 过滤放在之前但逻辑有误。 |
 | 验证 | 读代码确认顺序：主循环第 265-279 行先取满 `top_k`，第 307 行才把 `excluded`（已废止/未生效版本）过滤掉。确认假设①，与契约 §4「先取前 `top_k` 再做过滤、结果只剩两三条的实现，不符合这一条」逐字对应。<br>**但要用实测说话**：在我实测的这几个查询上 `filtered` 为空、`hits` 数仍恰好是 5，所以**这个缺陷在当前公开题上没有可观测后果**。它是一颗哑弹：只要某个查询的前 `top_k` 里混进了被废止版本，返回条数就会不足 `top_k` 而不报错。 |
 | 根因 | `kbqa/retriever.py:307` 与 `:278`。过滤与截断顺序颠倒。 |
-| 修复 | **未修复。** 正确改法是先过滤再截断（或过取样后按 `top_k` 截断）。 |
-| 回归测试 | **未写。** 应当构造一个前 `top_k` 含被废止版本的查询，断言返回条数仍恰好为 `top_k`。<br>说明：我没有把这条写成"已修复"或"已造成扣分"，因为**当前公开题上量不出效果** —— 记它是为了让评审看到我知道契约点名的这一条，且不虚报影响。 |
+| 修复 | 已修：把版本过滤挪进主循环（`retriever.py:267-274`）—— 遇到 `excluded` 里的文档直接 `continue` 并记入 `taken`，把名额让给后面的候选，保证取到的是 **`top_k` 条合法结果**而不是"先凑满再删"。原来第 304 行那句事后过滤删掉。 |
+| 回归测试 | `test_search_returns_exactly_top_k_when_versions_are_excluded`（`tests/test_retrieval.py`）：monkeypatch `_eligible` 强制把排名前三的 `KB-012`/`KB-013`/`KB-001` 判为不可用，断言返回条数**仍恰好 5**、且被排除的文档不再出现。<br>红灯证据（`git stash` 回滚 `retriever.py`）：**旧实现返回 0 条**（前三名全被剔除后再无补位），修复后 **5 条**，docs = `['KB-011','KB-061','KB-016','KB-025','KB-034']`。<br>说明：这条缺陷在公开题上当初量不出扣分（实测 `filtered` 多为空），但它正是契约 §4 逐字点名的那一条，且修复后行为正确、无回归。 |
 
 ## D-015：`kb_docs` 数的是目录文件数，不是进索引的文档数
 
@@ -163,6 +163,105 @@
 | 验证 | `knowledge_base/` 目录下共 **36 个文件** —— 与上报值恰好相等，指向假设②。而实际进索引的 `docs_meta` 只有 **35** 份（36 个文件里有 1 个是没有 KB 编号的 `README.md`）。<br>读 `kbqa/service.py:72`：`"kb_docs": sum(1 for path in self.settings.kb_dir.rglob("*") if path.is_file())` —— **遍历的是目录，压根没引用索引对象**。确认根因。 |
 | 根因 | `kbqa/service.py:72`。健康检查里的 `kb_docs` 用 `kb_dir.rglob("*")` 数文件，把非文档的 `README.md` 也算了进去，且完全没有引用 `self.index`。契约 §1 明确「`kb_docs`：**实际进入索引的**文档数，不是目录里的文件数」。<br>顺带说明一个连带关系：这个数在本轮修复过程中一直是"目录文件数"，所以 D-010（把 `.txt`/`.html` 纳入索引）**不会**改变 `kb_docs` —— 它只跟着往目录里加文件而变。 |
 | 修复 | 把 `kbqa/service.py:72` 改成读索引实况：`"kb_docs": len(self.index.docs_meta)`。修复后 `/api/health` 报 **35**，与 N01 的期望值一致。 |
-| 回归测试 | `test_kb_docs_counts_indexed_docs_not_directory_files`（`tests/test_retrieval.py`）：断言 `health["kb_docs"] == len(load_index(...).docs_meta)`。<br>红灯证据（只回滚 `service.py`）：`E AssertionError: kb_docs 报的是目录文件数，不是索引里的文档数`，1 failed。<br>修复后修复后 `kb_docs=35`、N01 的 `expect.kb_docs` 通过。 |
+| 回归测试 | `test_kb_docs_counts_indexed_docs_not_directory_docs`（`tests/test_retrieval.py`）：断言 `health["kb_docs"] == len(load_index(...).docs_meta)`。<br>红灯证据（只回滚 `service.py`）：`E AssertionError: kb_docs 报的是目录文件数，不是索引里的文档数`，1 failed。<br>修复后 `kb_docs=35`、N01 的 `expect.kb_docs` 通过。 |
+
+## D-016：含「多久 / 多少 / 几」的纯文档问题被强制改判成取数
+
+| C01 / C08 |  |
+|---|---|
+| 现象 | C01「外卖订单多久内可以申请退款？」与 C08「员工迟到多久算一次？」都是**纯制度问题**，却返回了取数答案：<br>`2026-05-01 至 2026-08-31（全部门店）：净营业额 646929.00 元，有效订单数 17926 单，……`<br>评测报 `answer_type_in` 失败：期望 `["doc","hybrid"]`，实际 `data`；同时 `cite_all` 失败（没有引用 KB-013 / KB-016）。两题问的都是规定，与营业额毫无关系。 |
+| 假设 | ① 这两篇文档没被检索到；② 意图被判成了 `data`；③ 答案拼装时选错了来源。 |
+| 验证 | 直接打 `/api/chat` 复现，得到与报告**完全一致的 99 字取数答案**。<br>打印意图：`plan(q)` 返回 `C01: intent=data kind=summary`、`C08: intent=data kind=summary` —— 确认假设②。<br>读 `kbqa/planner.py:251-256`：<br>`if E.has_any(text, ("多少", "多久", "几")): plan.intent = "data"` —— 只要问句里出现这三个词之一，就**无条件**把意图改写成 `data`，紧接着把 `kind` 从 `doc` 强行改成 `summary`。<br>对照验证：把「多久」去掉后同类问题正常走 doc：`退款政策是什么` → `intent=doc kind=doc`、`发票怎么开` → `intent=doc kind=doc`。而 C01 含「多久」、C08 含「多久」，双双被劫持。 |
+| 根因 | `kbqa/planner.py:253-256`。第 228-232 行的分类逻辑本来已经把这两个问题正确判成 `doc`（"问规定时即使句子里出现指标名也该去知识库"），但第 253 行的后置改写**不考虑前面的判断结果**，用「多少/多久/几」这种字面特征一票否决。<br>问题在于「多久」既可以问数字（"这单多久送达"）也可以问规定（"多久内可以退款"），单看字面无法区分——**必须看问句里有没有数据库能算的东西**（第 210 行的 `may_query` 正是为此设计的）。 |
+| 修复 | 已修：让 L253 的改写尊重前面的判定 —— 只有 `may_query` 为真（问句里确实点到指标/时间/门店/支付等可取数要素）时才允许把意图改成 `data`；已经被判为 `doc` 且 `may_query` 为假的，保持 `doc`（`planner.py:260`）。<br>实测：C01、C04 立刻从 `data`/`clarify` 变成正确的 `doc` 并引用到 gold。 |
+| 回归测试 | `test_doc_questions_cite_the_gold_document[C01]`、`test_doc_questions_cite_the_gold_document[C08]`（`tests/test_doc_answers.py`）。<br>红灯证据（只把 `planner.py` 回滚到 HEAD）：**5 failed**，`test_doc_answers.py` 从 19 passed 掉到 14 passed。<br>**实测覆盖面**：在内存里只模拟修好这一条，8 道 doc 题立刻有 **2 道转绿**：<br>`✓ C01: type=doc len=766 cites=['KB-011','KB-013']`<br>`✓ C04: type=doc len=501 cites=['KB-022']`<br>这条是本分类里影响面最大的一处。 |
 
 
+## D-017：`_context()` 把整篇文档原文倒进答案，绕过 200 字上限
+
+| C02 / C06 |  |
+|---|---|
+| 现象 | C02 回答 **1677 字**、C06 回答 **2551 字**，评测报 `answer_length` 失败（上限 1200 字），原文是「请给运营一段能读的话，不要把文档或数据倒进来」。C02 的回答直接从 `# 过敏原对照表 维护部门：总部品控部……` 开始，把整张表连同标题全铺开了。 |
+| 假设 | ① 没有长度限制；② 有长度限制但被绕过；③ 限制值设得太大。 |
+| 验证 | 代码里**确实有**上限：`kbqa/answerer.py:29` 定义 `MAX_CONTEXT_CHARS = 200`，第 136 行 `_doc_block` 也确实做了截断 `return "\n".join(lines)[:MAX_CONTEXT_CHARS]`。<br>但最终答案在 `answerer.py:361` 是这么拼的：<br>`return Answer(answer=self._context(result) + body, answer_type="doc", ...)`<br>—— **`self._context(result)` 拼在 `body` 前面，而它完全没有长度上限**。<br>读 `_context`（`answerer.py:320-326`）：<br>`for hit in result.hits[:1]: for chunk in self.retriever.index.chunks_of(hit.doc_id): blocks.append(chunk.text)`<br>—— 把命中文档的**全部 chunk 原样拼接**。C02 命中的 KB-040 有整张过敏原表，C06 命中的 KB-001 是整本手册，于是答案长度分别膨胀到 1677 / 2551 字。确认假设②。 |
+| 根因 | `kbqa/answerer.py:320-326` 的 `_context()` 没有长度约束，而 `answerer.py:361` 又把它无条件拼在受 `MAX_CONTEXT_CHARS` 约束的 `body` 之前。等于给答案开了一个不受控的后门——`_doc_block` 的截断形同虚设。<br>违反契约对 `doc` 类回答"给一段能读的话"的要求，也直接对应评测的 `answer_length ≤ 1200` 检查。 |
+| 修复 | 已修，两层防护：<br>① `_context()`（`answerer.py:332`）改为**带预算拼接** —— 上限取 `MAX_ANSWER_CHARS // 2`（即 600 字），给 `body` 里的引用句留足空间；同时压掉 HTML 文档留下的空白行。这样做而不是简单砍掉 `_context`，是因为它确实补了 `_doc_block` 可能漏掉的上下文，只是不能无限制。<br>② 在最终拼装处（`answerer.py:398`）加兜底 `answer[:MAX_ANSWER_CHARS]`，保证任何路径拼出来的 doc 回答都不超过交付上限。新增常量 `MAX_ANSWER_CHARS = 1200`（`answerer.py:32`）。<br>实测：C02 由 1677 → **775**，C06 由 2551 → **793**，全部落在 1200 以内。 |
+| 回归测试 | `test_doc_answers_stay_within_delivery_limit`（`tests/test_doc_answers.py`）：断言 8 道 doc 题的回答 `len(answer) <= 1200`。<br>红灯证据（只把 `answerer.py` 回滚到 HEAD）：**10 failed**，其中包含 `E AssertionError: C02 回答 1677 字，超过 1200`、`C06 回答 2551 字，超过 1200`。<br>另加 `test_doc_answers_do_not_dump_raw_html`，断言回答里不出现 `<p>`/`<meta`/`<style` 等标签。 |
+
+## D-018：`_doc_block` 的 `doc_id` 被覆盖成另一篇文档的编号，引用张冠李戴
+
+| C07 / C08 |  |
+|---|---|
+| 现象 | C07 gold 是 `KB-029`（8 月运营例会纪要），实际引用 `["KB-042","KB-060"]`；C08 gold 是 `KB-016`（考勤制度），实际引用 `["KB-060","KB-014"]`。两题的 `cite_all` 都失败。更怪的是：C08 的 `KB-016` 检索分明明是**第 1 名（6.37）**、C07 的 `KB-029` 排第 2（28.48，正文含"S04 已经连续两个月毛利率低于 35%"，正是答案），却都没被引用。 |
+| 假设 | ① gold 文档没被检索到；② 检索到了但引用环节丢的；③ 命中对象的字段自相矛盾。 |
+| 验证 | 直接打印 `search(...)` 每一条，立刻看出问题——**`doc_id` 与 `chunk_id` 对不上**：<br>C08：`doc_id=KB-014  chunk_id=KB-060#4  ★真实=KB-060`、`doc_id=KB-060  chunk_id=KB-050#2  ★真实=KB-050`<br>C03：`doc_id=KB-062  chunk_id=KB-061#12 ★真实=KB-061`、`doc_id=KB-030  chunk_id=KB-042#1 ★真实=KB-042`<br>C05：`doc_id=KB-061  chunk_id=KB-050#1  ★真实=KB-050`<br>也就是说，一条来自 KB-060 的片段被贴上了 `KB-014` 的标签。<br>**影响面**：统计下来 C08 的 5 条里错 2 条、C03 错 3 条、C05 错 1 条。`KB-016` 本来排第 1，但引用链取的是被覆盖后的错误编号，于是 citations 里出现了 KB-060/KB-014。确认假设③。 |
+| 根因 | `kbqa/retriever.py:276`：`hit.doc_id = ordered[len(hits)].doc_id`。第 274 行 `self._hit(position, ...)` 构造的 `Hit` 里，`doc_id` 已经正确取自 `chunk.doc_id`（`retriever.py:207`），`chunk_id`/`text`/`score` 也都来自同一个 `position`；第 276 行却用**另一个列表的下标**（`ordered` 是"未过滤的排序结果"，而 `len(hits)` 是"已采纳的条数"）把它覆盖掉，导致一条 `Hit` 的 `doc_id` 和 `chunk_id` 指向两篇不同的文档。<br>这不是"偶尔错"：只要命中过程中有片段因为 `MAX_CHUNKS_PER_DOC` 被 `continue` 跳过（第 270-271 行），两个下标就会错开，此后的每一条 `doc_id` 都顺移一位。它同时污染 `/api/retrieve` 返回和 `/api/chat` 的 `citations`。<br>契约 §4 的示例要求返回"每个片段的 `doc_id`、`chunk_id`"，两者必须一致。 |
+| 修复 | 已修：删掉 `retriever.py:276` 那一行（连带删掉只被它使用的 `ordered`）。`_hit()` 本来就按 `chunk.doc_id` 填好了 `doc_id`，不需要再覆盖。<br>实测修复后 C07 引用到 `KB-029`、C08 引用到 `KB-016`，两题都转绿。 |
+| 回归测试 | `test_every_hit_doc_id_matches_its_chunk_id`（`tests/test_doc_answers.py`）：对 8 道 doc 题 + 15 道检索题的全部 top-5 命中断言 `hit.doc_id == hit.chunk_id.split("#")[0]`。<br>红灯证据（只把 `retriever.py` 回滚到 HEAD）：**1 failed**，报出具体的不一致项（例如 `doc_id=KB-016 -> chunk_id=KB-060#4`）。修复后 30 条命中**零不一致**。<br>**注意不要把它算到 C02 头上**：C02 的 5 条命中 `doc_id` 全部正确，它的引用问题是另一条（见 D-021）。 |
+
+## D-019：「现在」被解析成系统当天，落在数据区间外触发硬拒答
+
+| C03 |  |
+|---|---|
+| 现象 | C03「Super Souper **现在**周五晚上营业到几点？」返回 `refusal`：`数据库里只有 2026-05-01 至 2026-08-31 的销售明细，2026-09-01 至 2026-09-01 没有任何数据。`<br>评测报 `answer_type_in` 失败（期望 `doc`/`hybrid`，实际 `refusal`），`fact_any` 失败（没提到 23:00/23点），`cite_all` 失败（没有 KB-062）。<br>注意 R08「**现在**单笔充值 500 送多少」在 `retrieval` 分类里是**通过的**（top-5 命中 KB-011），但在 `/api/chat` 上同样返回这段拒答——说明问题出在 chat 的意图路由，不是检索。 |
+| 假设 | ① KB-062 检索不到；② 时间解析把"现在"变成了区间外的日期；③ 意图被判成拒答。 |
+| 验证 | 先排除①：`search("Super Souper 现在周五晚上营业到几点？")` 里 `KB-062` 排**第 2 名（16.89）**，文档在、分也够。<br>打印意图，确认②③：<br>`plan("Super Souper 现在周五晚上营业到几点？")` → `intent=refusal kind=out_of_period window=('2026-09-01','2026-09-01')`<br>系统"今天"是 `2026-09-01`，数据只到 `2026-08-31`。**把"现在"去掉**再问：<br>`plan("Super Souper 周五晚上营业到几点？")` → `intent=data kind=summary window=('2026-05-01','2026-08-31')`（不再是拒答）<br>读 `kbqa/planner.py:284-295` 的 `_check_period`：只要 `plan.window` 完全落在数据区间之外，就设成 `intent=refusal, kind=out_of_period`。<br>**但"现在"本身不是充分条件**：单独测 `现在发票怎么开`、`现开发票的流程是什么`、`退款政策现在是什么`，三者都正常判成 `doc/doc`（窗口没有收窄成 2026-09-01）。只有像 C03 这样「现在」被解析成一个**具体日期窗口**时才触发拒答。 |
+| 根因 | `kbqa/planner.py:284-295` 的 `_check_period`：把"时间区间落在数据之外"直接等同于"无法回答"，没有区分**问题是否真的需要取数**。营业时间、会员政策、发票流程这类文档问题不依赖销售明细，不该因为句子里出现"现在"就被拒答。<br>第 286 行的守卫 `if not plan.needs_data or not plan.window: return` 本意是拦住这类情况，但 C03 的 `needs_data` 因 D-016（问句含「几」被改判 `data`）被置位，守卫失效——**两条缺陷叠加**才产生这个拒答。这也解释了为什么单独修 D-016 时 C03 仍然是 `refusal`：改判虽然不再发生，但"现在"仍把窗口收窄到 2026-09-01，而窗口落在区间外这条判定独立存在。 |
+| 修复 | 已修（随 D-016 一起解决）。D-016 修好后，C03 的 `needs_data` 不再被错误置位，`_check_period` 第 286 行的守卫 `if not plan.needs_data or not plan.window: return` 正常放行，拒答消失。<br>实测：C03 由 `refusal` 变成 `type=doc len=747 cites=['KB-062']`。 |
+| 回归测试 | `test_doc_questions_cite_the_gold_document[C03]`（`tests/test_doc_answers.py`）：断言 `answer_type in ("doc","hybrid")` 且引用了 `KB-062`。<br>红灯证据（`planner.py` 回滚）：**5 failed**，C03/P03 在内。<br>**说明**：本条与 D-016 是同一处代码改动的两个后果。之所以单列一条，是因为它们**不是同一个缺陷** —— D-016 是"意图被改错"，本条是"窗口落在数据区间外就无条件拒答"；单独回滚 `planner.py` 的不同部分可以分别复现。 |
+
+## D-020：文档信息不足时反问，而不是去知识库找
+
+| C05 |  |
+|---|---|
+| 现象 | C05「顾客要开发票，怎么跟他说？」返回 `clarify`：`这个问题我没抓住重点：是想查某段时间的经营数字，还是想看某条规定？补一个指标、时间或者门店，我就能答。`<br>评测期望 `doc`/`hybrid` 并引用 `KB-061`，实际既没答案也没引用。 |
+| 假设 | ① KB-061 没进索引；② 检索到了但分数低被反问；③ 反问分支的触发条件写得过宽。 |
+| 验证 | 先排除①：`KB-061` 在索引里，且 `search("顾客要开发票，怎么跟他说？")` 把它排**第 1 名（7.51）**——分不低，文档也在。<br>打印意图：`plan("顾客要开发票，怎么跟他说？")` → `intent=doc kind=doc`，路由正确。<br>读 `kbqa/answerer.py:353-359`：<br>`if plan.slots.get("underspecified") and top_score < CLARIFY_SCORE: return Answer(..., answer_type="clarify")`<br>反问需要「被判为 underspecified」**且**「检索最高分低于阈值」同时成立。既然 `top_score=7.51` 且 KB-061 就在第 1 名，说明 **`underspecified` 被误置**——问题有明确主题（开发票），并非"没抓住重点"。<br>读 `answerer.py:361` 之后的分支：只要不被这条拦住，就会走 `return Answer(answer=self._context(result)+body, answer_type="doc", citations=citations)`，即正常给出带引用的回答。 |
+| 根因 | `kbqa/answerer.py:353` 的澄清分支条件：`plan.slots["underspecified"]` 的判定过宽，把"有明确主题但没写明指标/时间/门店"的文档类问题也算成了信息不足。契约要求的 `clarify` 是留给**真的无法确定意图**的问题（例如"这个月怎么样"），而 C05 问的是明确的业务流程，知识库里有成文答案，此时应当回答而不是反问。<br>注：与 D-020 同样返回 `clarify` 的 C04 **不属于本条** —— C04 问句含「多少」，是先被 D-016 劫持成 `data/summary`、走 data 分支后才落到 `answerer.py:249` 的反问分支，成因不同。 |
+| 修复 | 已修：澄清分支增加前置条件 `and not citations`（`answerer.py:384`）—— **已经拿到可逐字引用的原文时不再反问**。<br>`underspecified` 只看问句里有没有指标/时间/门店这类抓手，认不出"顾客要开发票，怎么跟他说"这种有明确主题、只是没用制度词的问法；但引用链已经证明知识库里确有答案，此时反问等于把能答的问题推回给用户。<br>实测：C05 由 `clarify` 变成 `type=doc len=730 cites=['KB-061','KB-025']`。 |
+| 回归测试 | `test_underspecified_question_with_citations_is_answered`（`tests/test_doc_answers.py`）：断言 C05 的 `answer_type != "clarify"` 且引用了 `KB-061`。<br>红灯证据（只把 `answerer.py` 回滚）：**10 failed**，本条在内。<br>注：C05 同时受 D-018、D-021 影响（引用链要能拿到正确的 `KB-061`），所以它排在最后才转绿。 |
+
+## D-021：候选句排序把不相关的句子排在正确句子前面，引用落到无关文档
+
+| C02 |  |
+|---|---|
+| 现象 | C02「有顾客问牛肉poke 里有哪些过敏原，怎么答？」gold 是 `KB-040`（过敏原对照表），实际引用 `["KB-031","KB-025"]`：<br>`KB-031《门店档案 S02 Makai Poke》…：门店档案：S02 Makai Poke`<br>`KB-025《2026 年 7 月调价通知》…：**牛肉poke 售价由 ¥42 调整为 ¥45……**`<br>一条是门店档案、一条是调价通知，**都和过敏原无关**，而真正写着过敏原的 KB-040 没被引用。 |
+| 假设 | ① KB-040 没被检索到；② 检索到了但候选排序把它挤掉；③ `doc_id` 被覆盖错（D-018）。 |
+| 验证 | 先排除①③：打印 `_doc_block` 内部实际使用的 `_search(plan)` 结果，`KB-040` **排第 1（35.50）**，且 5 条命中的 `doc_id` 与 `chunk_id` **全部一致**（没有被 D-018 影响）。<br>再查候选句排序 `_candidates(plan, res, require_value=True)`，这一步暴露了真问题——**KB-040 的句子被排在后面，且分数被压得很低**：<br>`score=0.35 doc_id=KB-040 '顾客主动告知过敏时，以本表为准回答……'`<br>`score=0.31 doc_id=KB-040 '\| P06 \| 牛肉poke \| ✓ \| ✓ \| — \| — \| — \| — \| ✓ \| —'`<br>`score=0.34 doc_id=KB-031 '以波奇饭为主力的轻食店，三文鱼poke、鸡肉poke、牛肉pok'`<br>注意 KB-031 那句是"门店简介"，只因为字面出现了"牛肉poke"就拿到 0.34；而 KB-040 里真正回答过敏原的那一行（`\| P06 \| 牛肉poke \| …`）只有 0.31。<br>**决定性一步**：打印"按当前排序键排好之后的前 6 条"，发现排在最前面的是 0.066、0.145、0.171 这些**最低分**的句子 —— 高分的 `KB-040`（0.35）和 `KB-013`（0.66）反而垫底。这说明问题不只是"分数算得不准"，而是**挑选顺序反了**。 |
+| 根因 | `kbqa/answerer.py` 的候选排序与挑选配合错了：<br>① 第 84 行 `candidates.sort(key=lambda item: (round(item["score"], 2), item["effective_from"]))` 是**升序**，而第 94 行的 `for candidate in candidates` 从**头**遍历、挑到第 2 条就在第 100 行 `break` —— 于是**先被采纳的恰恰是分数最低的句子**，真正回答问题的句子永远轮不到。<br>② 第 84 行把 `effective_from` 放在第二顺位且为升序，与第 78-79 行注释声称的"分数接近时以生效日期更新的为准"**方向相反**：注释说要新的，代码把旧的排在前面。<br>③ 另外，被取代的旧版本（`superseded_by` 非空）没有被降权 —— KB-012 是退款政策 v1，BM25 分数却高于现行 v2（KB-013），导致用废止版的"7 天"回答现行规定。 |
+| 修复 | 已修，两处：<br>① **排序方向**：`answerer.py:90` 的排序键改为 `reverse=True`。原先是升序，而下面第 94 行的 `for` 从头遍历、挑到第 2 条就 `break` —— **先挑的恰恰是分数最低的句子**，真正回答问题的句子永远轮不到（这正是"排序没错、选择错了"的隐蔽之处）。<br>② **被取代版本降权**：`answerer.py:160-165` 增加 `elif meta.get("superseded_by"): estimate_penalty *= 0.4`。KB-012（退款政策 v1）的 BM25 分数高于 KB-013（v2），不降权就会用废止版的"7 天"回答现行规定；同时不清零，问"以前那版怎么说"时还要用得上。<br>实测：C01 引用到现行版 `KB-013`，C02 引用到 `KB-040`，C06 引用到 `KB-001`，C07 引用到 `KB-029`，C08 引用到 `KB-016`。 |
+| 回归测试 | `test_doc_questions_cite_the_gold_document`（8 例参数化）、`test_current_version_outranks_superseded`（`tests/test_doc_answers.py`）。<br>红灯证据（只把 `answerer.py` 回滚）：**10 failed**，`doc` 从 7/8 掉回 1/8。<br>`test_current_version_outranks_superseded` 专门盯住版本方向：断言引用含 `KB-013` 且答案里出现 `24`（v2 的时限），修复前引用的是 v1 的 `7`。 |
+
+## D-022：非 UTF-8 的老文件被 `errors="ignore"` 解码，中文被整段删除
+
+| C03 |  |
+|---|---|
+| 现象 | 修完 D-016～D-019 后 C03 已能走到 `doc` 路线，但引用的是 `KB-030`（门店档案）和 `KB-042`（营业时间总表），说的都是"**10:30–21:30**"；而 gold 是 `KB-062`（旧 OA 导出的调整通知），内容是"周五、周六**延长营业至 23:00**"。评测 `fact_any` 要的是 `23:00`/`23点`/`晚上11点`，一个都没提到。 |
+| 假设 | ① KB-062 没进索引；② 进了索引但内容不对；③ 分数不够。 |
+| 验证 | 先排除①：`docs_meta` 里**有** KB-062，而且检索排第 3（33.78），分数不低。<br>但它的 **title 是乱码**：`'ζϺ\u07b9˾   OA ϵͳ   ļ'` —— 这是典型的"以错误编码读中文"的结果，指向假设②。<br>直接探测文件字节：前 16 字节是 `3D 3D 3D …`（一堆 `=`），**没有 BOM**；分别按 UTF-8 与 GB18030 解同一段：<br>UTF-8 → `��ζ����������Ϻ������޹�˾   OA ����ϵͳ   �����ļ�`（全是替换字符）<br>GB18030 → `合味餐饮管理（上海）有限公司   OA 公文系统   导出文件`（完全正常）<br>确认这份文件是 **GB18030 编码**。<br>再读 `kbqa/loader.py:84`：`return raw.decode("utf-8", errors="ignore")` —— `ignore` 对无法解码的字节不是替换而是**丢弃**。实测旧实现解出来只有 **789 字符**，中文全部消失，`'合味餐饮' in text` 为 **False**。<br>对全目录做了编码普查：**只有 KB-062 这一份**不是 UTF-8。 |
+| 根因 | `kbqa/loader.py:84` 的 `decode_bytes()`。注释写着"个别老文件里有怪字符，忽略掉就行，不影响检索"，但这个假设是错的：KB-062 不是"个别怪字符"，而是**整份 GB18030 中文公文**。`errors="ignore"` 把解不出来的字节直接删掉，于是正文只剩 `=`、时间戳和编号，中文内容归零。<br>后果很隐蔽：文档**确实进了索引**（所以 `kb_docs`、检索排名都正常），但内容是空的，任何中文提问都命不中它。这也解释了为什么它一直"在索引里却从来没被引用过"。 |
+| 修复 | 已修：`decode_bytes()` 改为三级回退 —— 先严格 UTF-8，失败则 GB18030，再失败才退到 `errors="ignore"` 并留下 warning。同时新增 `LOADER_VERSION = "loader-2"` 并纳入缓存键（见 D-011 的补充），否则磁盘上的旧索引不会失效。 |
+| 回归测试 | `test_gb18030_document_decodes_to_chinese`、`test_utf8_document_still_decodes`、`test_real_kb062_is_readable`（`tests/test_doc_answers.py`）：用 `"合味餐饮管理（上海）有限公司…23:00".encode("gb18030")` 造样本，断言中文能解出来且留下 warning；并断言真实知识库的 KB-062 标题含"合味餐饮"、正文含 `23:00`。<br>红灯证据：旧实现（`errors="ignore"`）解同一份文件，`'合味餐饮' in text` 为 **False**、长度只有 789；新实现为 **True**。<br>修复后 C03 引用到 `KB-062`。 |
+
+## D-023：HTML 文档原样入库，标签混进正文与引用
+
+| C05 |  |
+|---|---|
+| 现象 | C05 的引用是 `KB-061`（gold，正确），但仍被评测判失败：`quotes_verbatim` 报<br>`KB-061 的 quote 不是原文里的连续文字：<p>发票在小程序"我的订单"里自助开具。`<br>回答正文里也赫然出现 `<!DOCTYPE html>…<meta name="keywords" content="FAQ,常见问题,发票,Wi-Fi,…` 这样的原始标记。 |
+| 假设 | ① quote 确实不在原文里；② 原文里不是这句话；③ 比较口径不一致（原文经过清洗）。 |
+| 验证 | 先排除①：用 `IndexOf('发票在小程序')` 在 KB-061 里找到位置 3707，原文是<br>`<p>发票在小程序"我的订单"里自助开具。找到对应订单点"开发票"，填抬头和税号后提交……</p>`<br>—— 文字完全一致，只是**前面多了一个 `<p>`**。指向假设③。<br>读评测 `run_eval.py:243-244`：载入知识库时对 `.html`/`.htm` 调用了 `html_to_text()`（去 script/style → 标签换空白 → 解实体），也就是说**逐字比较用的基准是"可见正文"，不含标签**。<br>回头读 `kbqa/loader.py:198`：注释写着"html 直接按文本入库，标签也就那么几个，BM25 自己会忽略" —— 但 KB-061 是一整页 HTML（`<!DOCTYPE>`/`<head>`/`<meta>`/`<style>` 齐全）。实测入库后 chunk 里共有 **159 个标签**（修复前抽样 153）。标签既挤占 chunk 空间（把 300 字的片段塞满标记），又让引用的 `quote` 带上 `<p>`，于是逐字校验必然失败。 |
+| 根因 | `kbqa/loader.py:198`。HTML 未做任何标签剥离就整份入库，作者误判为"标签没几个"。这与契约/评测对 quote 的要求冲突：quote 必须是**可见正文里的连续文字**。<br>影响范围不止 C05：KB-061 是 FAQ，任何引到它的回答都会带标签；`answer_length` 也被标签撑大（这是 D-017 里 C05 回答一度达到 5719 字符的直接原因之一）。 |
+| 修复 | 已修：新增 `html_to_text()`（`loader.py:88`）—— 去掉 `script`/`style`，块级结束标签换成换行（避免 `<p>甲</p><p>乙</p>` 粘成"甲乙"），其余标签换空白，再 `unescape` 实体；在 `load_document()` 的 html 分支里对正文调用它。`LOADER_VERSION` 提到 `loader-3` 让旧索引失效。 |
+| 回归测试 | `test_html_document_has_no_tags`、`test_real_kb061_has_no_tags`（`tests/test_doc_answers.py`）：造一份含 `<style>` 与 `<p>` 的 HTML，断言入库后正文里没有 `<p>`/`<style>`/`color:red`，且可见文字完整保留；并对真实 KB-061 断言无 `<!DOCTYPE`/`<meta`/`<style`/`<p>`，且"发票在小程序"仍在。<br>红灯证据：旧实现下 KB-061 正文含 **159 个标签**；新实现（`html_to_text`）为 **0 个**。<br>修复后 C05 的 `quotes_verbatim` 通过，引用 `KB-061` + `KB-025`。 |
+
+
+## D-024：切块按固定字符数硬切，把表格行劈成两半且丢掉了表头
+
+| C02 |  |
+|---|---|
+| 现象 | C02 的引用已经能落到 gold `KB-040`（D-021 修好后），但评测仍判失败：<br>`fact_all: 回答里没提到，KB-040 的 quote 里也没有：麸质、大豆、芝麻`<br>引用的那句是 `顾客主动告知过敏时，以本表为准回答，不要凭记忆判断，也不要说"应该没有"。` —— 这是表的**使用说明**，不是答案本体。真正写着"牛肉poke 含哪些过敏原"的是表里 `\| P06 \| 牛肉poke \| ✓ \| ✓ \| …` 这一行。 |
+| 假设 | ① KB-040 里没有那一行；② 有那一行但没被选中；③ 选中了但没渲染出列名。 |
+| 验证 | 先排除①：原文里 `\| P06 \| 牛肉poke \| ✓ \| ✓ \| — \| — \| — \| — \| ✓ \| — \| — \|` 确实存在。<br>再查②：`facts.rank(..., require_value=True)` 的前几名里**有**这一行（0.311，排第 2）。指向③。<br>直接调 `facts.render('KB-040', '| P06 | 牛肉poke | …')`，返回的是**原样字符串**（`✓` 没被还原成列名）。<br>读 `docfacts.py:265` 的 `table_header_for()`：它在 `units` 里找 `unit.kind == "table"` 且 `text` 相同的那一条来取表头 —— 说明**渲染逻辑本身是写好的**，只是拿不到表头。<br>打印 KB-040 的全部 units，发现**每一行都是 `kind=text`、`header=[]`**：<br>`kind=text text='\| 商品编号 \| 商品名称 \| 麸质 \| 大豆 \| …'`<br>`kind=text text='\| P06 \| 牛肉poke \| ✓ \| ✓ \| …'`<br>回看 `units.py:124` 的分支 `if chunk.kind == "table":` —— 它只有在 **chunk 被打上 `table` 标记**时才会走表格逻辑、才会把表头写进 `Unit.header`。<br>而 `chunker.py` 的 `chunk_document()` 是 `for start in range(0, len(text), CHUNK_SIZE)` 的**固定字符数硬切**，`Chunk.kind` 恒为默认值 `"text"`、`table_header` 恒为 `[]` —— 那两个字段等于是**死代码**。<br>硬切还带来第二个可见后果：KB-040 的 `\| P02 \|` 和 `味增拉面 \| ✓ \| ✓ \| …` 被切进了两个不同的 chunk，引用出来是半截行。 |
+| 根因 | `kbqa/chunker.py` 的切块方式：<br>① 按**固定字符数**切，不看行边界 —— 表格行被劈开，引用会出现半行。<br>② 从不识别 markdown 表格，`Chunk.kind` / `Chunk.table_header` 永远是空 —— 于是 `docfacts.render_row()` 里"把 `✓` 还原成列名"的逻辑**永远不执行**。<br>这一点很关键：过敏原表用的是 `✓`/`—`，**符号本身不含任何过敏原名字**，全部语义都在表头（麸质/大豆/鱼类/甲壳类/蛋/奶/芝麻/坚果/酒精）。丢了表头，那一行在任何人类或机器看来都只是"一串对钩"，无法回答"含哪些过敏原"。 |
+| 修复 | 已修：`chunk_document()` 重写为**按行切块**：<br>① 先按"表格 / 非表格"分段，表格段的表头记下来；<br>② 段内按行累加到 `CHUNK_SIZE`，<br>③ 表格块各自补一行表头（被切开时每块单独看也读得懂）；<br>④ **单行超长时硬切** —— 邮件正文常常整段无换行，KB-022 有 3210 字、KB-029 有 2635 字，不硬切会退化成单块。<br>⑤ `Chunk.kind` 标为 `"table"`、`table_header` 填上列名，`units.py:124` 的表格分支这才真正生效。<br>实测 `facts.render('KB-040', '| P06 | 牛肉poke | …')` 由原样字符串变为 **`P06 牛肉poke：含有 麸质、大豆、芝麻。`**<br>`CHUNKER_VERSION` 提到 `chunker-3`。 |
+| 回归测试 | `test_doc_questions_cite_the_gold_document[C02]`（`tests/test_doc_answers.py`）：断言引用含 `KB-040`。<br>红灯证据（回滚 `chunker.py` + 清缓存）：`C02` 与 `C04`、`C07` 一起变红；`facts.render()` 返回原样表格行。<br>**踩过的坑（记下来免得再犯）**：改完 `chunker.py` 后索引缓存键**没有变化**，服务继续读 `.cache/index.json` 里的旧索引（64 chunks），于是"代码改了却测试仍红"。必须同时 bump `CHUNKER_VERSION` 或删掉 `.cache/index.json`。实测删除缓存后 chunk 数 64 → **148**。 |

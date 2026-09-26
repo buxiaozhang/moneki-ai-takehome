@@ -12,10 +12,10 @@ from typing import Optional
 
 from .aliases import AliasTable, build_alias_table
 from .chunker import CHUNKER_VERSION, Chunk, chunk_documents
-from .loader import SUPPORTED_SUFFIXES, Document, load_knowledge_base
+from .loader import LOADER_VERSION, SUPPORTED_SUFFIXES, Document, load_knowledge_base
 from .tokenizer import TOKENIZER_VERSION, tokenize
 
-INDEX_VERSION = "bm25-4"
+INDEX_VERSION = "bm25-5"
 K1 = 1.5
 B = 0.75
 
@@ -28,7 +28,9 @@ def content_key(kb_dir: Path) -> str:
     这里把每个受支持文件的相对路径、大小、mtime、内容哈希一起算进去。
     """
     digest = hashlib.sha256()
-    digest.update(("%s|%s|%s\n" % (INDEX_VERSION, CHUNKER_VERSION, TOKENIZER_VERSION)).encode())
+    digest.update(
+        ("%s|%s|%s|%s\n" % (INDEX_VERSION, CHUNKER_VERSION, TOKENIZER_VERSION, LOADER_VERSION)).encode()
+    )
     sources = sorted(
         path for path in kb_dir.rglob("*")
         if path.is_file() and not path.name.startswith(".")

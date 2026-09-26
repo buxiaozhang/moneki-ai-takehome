@@ -27,6 +27,9 @@ RETRIEVAL_SOFT_GATE = 12.0
 CLARIFY_SCORE = 8.0
 #: 拼给作答用的资料最长多少字，太长了没必要。
 MAX_CONTEXT_CHARS = 200
+#: 交付给运营的整段回答最长多少字。运营要的是一段能读的话，
+#: 不是把文档原文倒进来——评测对 doc 类回答的硬上限就是 1200。
+MAX_ANSWER_CHARS = 1200
 
 
 class Answerer(HybridAnswers):
@@ -81,7 +84,10 @@ class Answerer(HybridAnswers):
         candidates = self._candidates(plan, result, require_value=True)
         if not candidates:
             candidates = self._candidates(plan, result, require_value=False)
-        candidates.sort(key=lambda item: (round(item["score"], 2), item["effective_from"]))
+        # 从高分往低分挑。原来的升序排序配合下面的 `for` 会**先挑最低分的句子**，
+        # 挑到第二条就 `break`，真正回答问题的句子永远轮不到。
+        # 分数持平时用生效日期新的优先，与上面那句注释一致。
+        candidates.sort(key=lambda item: (round(item["score"], 2), item["effective_from"]), reverse=True)
         lines: list[str] = []
         citations: list[dict] = []
         used_terms: set[str] = set()
@@ -151,6 +157,12 @@ class Answerer(HybridAnswers):
             if plan.slots.get("historical"):
                 # 问的就是旧版：被取代的那一版才是答案，现行版让位。
                 estimate_penalty *= 1.5 if meta.get("superseded_by") else 0.6
+            elif meta.get("superseded_by"):
+                # 没问旧版时，被取代的那一版不该当答案。
+                # 索引里 `status` 没被解析出来（是 None），所以不能只靠状态字段，
+                # 有 `superseded_by` 就说明它已经作废；压到现行版之下，
+                # 但不清零 —— 问“以前那版怎么说”时还要用得上。
+                estimate_penalty *= 0.4
             for score, unit in ranked:
                 candidates.append(
                     {
@@ -318,11 +330,30 @@ class Answerer(HybridAnswers):
     # -- 纯文档 -----------------------------------------------------------------
 
     def _context(self, result: SearchResult) -> str:
-        """把命中的那篇文档原样拼进来，答案就在里面，别漏了。"""
+        """把命中的那篇文档原样拼进来，答案就在里面，别漏了。
+
+        `_doc_block` 负责挑出"能读的那句话"，这里补的是它可能漏掉的上下文。
+        但原文可能很长（KB-061 是整页 HTML、KB-001 是整本手册），**必须封顶**：
+        不封顶时答案会被原文淹没，运营读不下去，也超过交付上限。
+        上限按"给 body 至少留一半"来算，保证引用句不会被挤掉。
+        """
         blocks: list[str] = []
+        used = 0
+        budget = max(0, MAX_ANSWER_CHARS // 2)
         for hit in result.hits[:1]:
             for chunk in self.retriever.index.chunks_of(hit.doc_id):
-                blocks.append(chunk.text)
+                # HTML 文档按标签切行会留下成堆的 <meta>/<link>，先压掉空白行。
+                text = "\n".join(line for line in chunk.text.splitlines() if line.strip())
+                if not text:
+                    continue
+                if used + len(text) > budget:
+                    blocks.append(text[: max(0, budget - used)])
+                    used = budget
+                    break
+                blocks.append(text)
+                used += len(text)
+            if used >= budget:
+                break
         return ("\n".join(blocks) + "\n") if blocks else ""
 
     def _should_refuse(self, plan: Plan, confidence: float, top_score: float) -> Optional[str]:
@@ -350,12 +381,17 @@ class Answerer(HybridAnswers):
                 answer_type="refusal",
                 notes=[reason or "没有可以逐字引用的原文"],
             )
-        if plan.slots.get("underspecified") and top_score < CLARIFY_SCORE:
+        if plan.slots.get("underspecified") and top_score < CLARIFY_SCORE and not citations:
             # 问得太泛、检索也没有明显命中：宁可反问，也不要拿一段不相干的原文充数。
+            # 但**已经拿到可逐字引用的原文**时不该反问：`underspecified` 只看问句里有没有
+            # 指标/时间/门店这类抓手，认不出"顾客要开发票，怎么跟他说"这种有明确主题、
+            # 只是没用制度词的问法。此时知识库确实有答案，反问等于把能答的问题推回给用户。
             return Answer(
                 answer="这个问题我没抓住重点：是想查某段时间的经营数字，还是想看某条规定？"
                 "补一个指标、时间或者门店，我就能答。",
                 answer_type="clarify",
                 notes=["检索最高分 %.1f，且问题里没有指标、时间或门店" % top_score],
             )
-        return Answer(answer=self._context(result) + body, answer_type="doc", citations=citations)
+        answer = self._context(result) + body
+        # 兜底：任何路径拼出来的 doc 回答都不许超过交付上限。
+        return Answer(answer=answer[:MAX_ANSWER_CHARS], answer_type="doc", citations=citations)

@@ -250,10 +250,17 @@ class Planner:
 
         # 路由：问“多少/多久/几”的就是要数字，问“为什么/原因”的就是要说法。
         # 两边都走一遍太慢，没必要。
+        #
+        # 但“多久”“几”本身分不出问数字还是问规定：
+        #   “外卖订单多久内可以申请退款”问的是制度，“7 月卖了多少”问的是数字。
+        # 上面第 210 行的 may_query 已经算过“句子里有没有数据库能算的东西”，
+        # 只有它成立时才允许把已经判成 doc 的结果改写成 data，
+        # 否则上面第 231-232 行的判断会被这一句无条件推翻。
         if E.has_any(text, ("多少", "多久", "几")):
-            plan.intent = "data"
-            if plan.kind in ("doc", "anomaly", "target", "price"):
-                plan.kind = "summary"
+            if plan.intent != "doc" or may_query:
+                plan.intent = "data"
+                if plan.kind in ("doc", "anomaly", "target", "price"):
+                    plan.kind = "summary"
         elif E.has_any(text, ("为什么", "原因", "怎么回事", "咋回事")):
             plan.intent, plan.kind = "doc", "doc"
 
