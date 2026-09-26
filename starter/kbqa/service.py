@@ -69,7 +69,8 @@ class Service:
             "llm_mode": self.settings.llm_mode,
             # 契约 §1 只要求 llm_mode；下面这组是附加的，用来说明"为什么是 mock"。
             "llm": self.settings.llm_diagnostics(),
-            "kb_docs": sum(1 for path in self.settings.kb_dir.rglob("*") if path.is_file()),
+            # 契约 §1：实际进入索引的文档数，不是目录里的文件数。
+            "kb_docs": len(self.index.docs_meta),
             "kb_chunks": len(self.index.chunks),
             "valid_sales_rows": self.tools.valid_sales_rows(),
             "today": self.settings.today.isoformat(),

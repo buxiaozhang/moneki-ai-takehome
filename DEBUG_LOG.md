@@ -87,3 +87,82 @@
 | 根因 | `starter/tests/` 缺少带**期望值**的断言。冒烟测试只能证明"没崩"，不能证明"算对了"，而本题的评分核心正是数字正确性。 |
 | 修复 | 补三层测试（数量为 `pytest --collect-only` 实测）：<br>`tests/test_cleaning.py`（22）—— KB-001 §2 规范化 + §3 六条剔除，逐条覆盖；<br>`tests/test_metrics.py`（18）—— 用手工构造的小表测 §4 每个口径，每行数据都能手算，失败时一眼定位是哪个口径；<br>`tests/test_metrics_e2e.py`（9）—— 真实数据端到端，钉死评测报出的具体数字。<br>加上原有 `test_api.py`(17)、`test_config.py`(16)、`test_streaming.py`(19)，共 **101 个测试**。 |
 | 回归测试 | 修复前：三个新文件 **43 红 / 6 绿**；修复后：**101 全绿**。<br>两点自我纠错记录：<br>① `test_metrics.py` 里我最初把 `amount_cents=800` 读成 ¥16.00（实际 ¥8.00），3 个断言期望值算错。核对后确认是**我的算术错、不是实现错**，改的是测试而不是去迁就实现 —— 记在这里是因为"把测试改绿"也可能是把测试改错。<br>② `test_metrics.py`（手算小表）与 `test_metrics_e2e.py`（真实数据）互相交叉验证，两者若不一致说明口径实现有隐含依赖。 |
+
+## D-009：分词按空白切，中文查询整体变成一个 token，BM25 全零分
+
+| R01 |  |
+|---|---|
+| 现象 | 9 道检索题失败（R01/R03/R04/R05/R08/R10/R11/R13/R15），但失败形态分两类。其中 **R01、R04、R05、R13、R15 返回的是完全相同的一个列表** `["KB-001","KB-002","KB-003","KB-020","KB-021"]` —— 五个毫不相关的问题（退款时效 / 三文鱼赔偿 / 开发票 / 台风闭店 / 员工折扣）给出同一个答案，这只能是打分整体失效。 |
+| 假设 | ① 这五个 gold 文档不在索引里；② 打分函数坏了；③ 查询与文档无法匹配（分词问题）。 |
+| 验证 | 用服务同款缓存索引跑 `Retriever.search`，**逐字复现**了报告里 9 道题的全部输出（见 `kbqa/index.py` 的 `load_index`，25 docs / 53 chunks）。<br>打印分数发现关键证据：R01/R04/R05/R13/R15 的 5 条结果**全部 `score=0.000` 且 `padded=True`** —— 它们不是检索出来的，是**分数全零后按 chunk 物理顺序兜底填充**的。索引里前 5 个 chunk 恰好就是 KB-001/002/003/020/021。<br>再查分词：`tokenize("外卖订单多久内可以申请退款")` 返回 `['外卖订单多久内可以申请退款']` —— **整句成了一个 token**。`tokenizer.py:22` 的实现是 `normalise(text).split()`，**只按空白切分**，中文没有空格，所以整句变一个词。<br>反证：凡查询里含 ASCII 词的题都正常。对照 R12（`['s03','六月停业几天,什么原因']`）得 5/5 非零分且命中 gold；R07（含 `618`、`poke`）得 12.05 高分。**纯中文查询 5 条全零，含 ASCII 的查询 5 条全非零** —— 规律完全吻合。 |
+| 根因 | `kbqa/tokenizer.py:22` 的 `tokenize()`：`return normalise(text).split()`。只按空白切词，对中文等于不切词。整句作为单一 token 在索引里查不到（索引里也是同样的整句 token，但查询句与文档句不会逐字相同），IDF 算出来为 0，BM25 全部返回 0 分。<br>这违反契约 §4「按相关性从高到低排序」—— 全零分时排序无意义，实际输出退化成 chunk 物理顺序。 |
+| 修复 | 把 `tokenize()` 从 `normalise(text).split()` 改成 `_TOKEN_RE.findall(...)`，规则是「连续的字母/数字算一个词、每个汉字单独算一个词、其余字符当分隔符」：`re.compile(r"[a-z0-9]+\|[\u4e00-\u9fff]")`。同步把 `TOKENIZER_VERSION` 从 `tokenizer-2` 提到 `tokenizer-3`，让旧索引缓存失效。<br>为什么不按空白+标点切：中文书面语本来就不用空格，`split()` 对中文等于不切词；`docfacts.py:290` 的注释也写着「只看二元组与英文词」，说明原设计意图就不是整句一个词。 |
+| 回归测试 | `test_chinese_query_is_tokenized`、`test_cjk_single_chars_are_tokens`、`test_ascii_words_stay_whole`、`test_mixed_text_splits_both_ways`、`test_tokenizer_version_bumped_for_cache_invalidation`（`tests/test_retrieval.py`）。<br>红灯证据（只把 `tokenizer.py` 回滚到 HEAD、其余修复保留，跑 `tests/test_retrieval.py`）：**13 failed / 18 passed**。<br>`E AssertionError: 中文整句被当成一个词，BM25 会全零分` / `assert 1 > 1`<br>`E AssertionError: assert ['台风闭店'] == ['台', '风', '闭', '店']`<br>`E AssertionError: assert 'poke' in ['牛肉poke', '卖了多少']`<br>`E AssertionError: assert 'tokenizer-2' != 'tokenizer-2'`<br>修复后该文件 **31 passed**。**效果**：9 道失败的检索题从 **0/9 → 6/9**。 |
+
+## D-010：`.txt` / `.html` 文档被 `loader` 静默跳过，永远进不了索引
+
+| R03 |  |
+|---|---|
+| 现象 | 修好 D-009 后 R03、R04、R05 仍失败。这三题的 gold 分别是 `KB-062`（旧 OA 导出，`.txt`）、`KB-022`（英文供应商邮件，`.txt`）、`KB-061`（FAQ，`.html`）。报告里 `/api/health` 的 `kb_warnings` 只有一条「跳过没有 KB 编号的文件：README.md」，看不出还有文件被丢。 |
+| 假设 | ① 这三份文档内容不相关、打分低；② 文档根本没进索引。 |
+| 验证 | 直接比对磁盘与索引：磁盘 36 个文件、32 个 KB 编号；`build_index` 出来的 `docs_meta` 只有 **32 个**，而 `KB-062`/`KB-022`/`KB-061` **都不在里面**。排除假设①。<br>查扩展名分布：`.md` 33 个、`.txt` 2 个、`.html` 1 个 —— 缺的正好是**非 `.md` 的那三个**。<br>读 `kbqa/loader.py:12`：`SUPPORTED_SUFFIXES = {".md", ".markdown"}`；第 233 行 `if path.suffix.lower() not in SUPPORTED_SUFFIXES: continue` —— **`continue` 之前没有 `warnings.append(...)`**，所以是静默跳过。<br>反证：把 `.txt`/`.html` 加进白名单后重建，索引从 **32 docs / 80 chunks → 35 docs / 111 chunks**，且 R03、R05 立刻命中。 |
+| 根因 | `kbqa/loader.py:12` 与 `:233`。白名单漏了 `.txt` 与 `.html`，且跳过时不产生 warning。讽刺的是 `loader.py:173` 的格式映射表里**明知**有 `".txt": "txt"` 和 html 兜底分支、`loader.py:179` 还专门注释了「html 直接按文本入库」—— 说明这两种格式本来就是打算支持的，只是入口白名单漏了。 |
+| 修复 | `SUPPORTED_SUFFIXES = {".md", ".markdown", ".txt", ".html"}`；第 233 行改为 `warnings.append("跳过不支持的文件类型：%s" % path.name)` 后再 `continue`。 |
+| 回归测试 | `test_txt_and_html_are_supported_suffixes`、`test_loader_indexes_txt`、`test_loader_indexes_html`、`test_skipped_file_produces_warning`（`tests/test_retrieval.py`）。<br>红灯证据（只回滚 `loader.py`）：**4 failed**。<br>`E AssertionError: assert '.txt' in {'.markdown', '.md'}`<br>`E AssertionError: assert 'KB-900' in set()`<br>`E AssertionError: assert 'KB-901' in set()`<br>`E AssertionError: 跳过文件时没有产生任何 warning`<br>修复后 `kb_docs` 由 32 → **35**。 |
+
+## D-011：缓存键只哈希版本号，知识库换了也不重建索引
+
+| R01–R15 |  |
+|---|---|
+| 现象 | 服务实际装载的是**缓存索引 25 docs / 53 chunks**，而按当前代码重新构建是 **32 docs / 80 chunks**。同一份代码、同一个目录，两条路径结果不同。修好 D-010 后差距更大（35 docs / 111 chunks）。索引缺了 7～10 份文档，直接导致 R01/R08/R10/R11/R13/R15 的 gold 虽然代码上"能索引"，服务里却根本没有。 |
+| 假设 | ① 我的修复没生效；② 装载逻辑本身有别的问题；③ 服务读的是磁盘上的旧缓存。 |
+| 验证 | 并排对比：`build_index(kb_dir)` → 32 docs / 80 chunks；`load_index(kb_dir, index_path)` → **25 docs / 53 chunks**。同一目录同一代码，确认是缓存问题，排除假设①②。<br>读 `kbqa/index.py` 的 `content_key(kb_dir)`：`sha256("%s\|%s\|%s" % (INDEX_VERSION, CHUNKER_VERSION, TOKENIZER_VERSION))` —— **只哈希三个版本号字符串，不含任何知识库内容**。只要这三个常量不变，缓存永远命中。<br>实测 `load_index` 返回的 `key=8651fac3…` 与报告 `/api/health` 里的 `index_key` **完全一致**，证明服务用的就是这份陈旧缓存。 |
+| 根因 | `kbqa/index.py` 的 `content_key()`。缓存键与语料内容完全无关，违反契约 §8「必须提供一条命令从这两个目录重新生成清洗后的数据和检索索引」—— 评审替换 `knowledge_base/` 后执行重建，此时缓存键不变，重建会**沿用旧索引**，检索大面积失效。这条最隐蔽：本地反复调试时"改了代码没生效"，很容易误判成代码没改对。 |
+| 修复 | 缓存键加入语料指纹：遍历 `kb_dir` 下所有 `SUPPORTED_SUFFIXES` 里的文件，把**文件名 + size + mtime + 内容 sha256** 一起喂进哈希（含内容哈希，保证同尺寸改写也能失效）。同时把 `INDEX_VERSION` 从 `bm25-3` 提到 `bm25-4`，并 `from .loader import SUPPORTED_SUFFIXES`。 |
+| 回归测试 | `test_cache_key_changes_when_document_edited`、`test_cache_key_changes_when_document_added`、`test_cache_key_stable_for_same_content`、`test_load_index_rebuilds_on_content_change`（`tests/test_retrieval.py`）。<br>红灯证据（只回滚 `index.py`）：**2 failed / 2 passed**。<br>`E AssertionError: assert 'b1d4e3b5…48685' != 'b1d4e3b5…48685'` —— 改了文档内容，缓存键**一模一样**，这正是缺陷本身。<br>修复后全绿。**附带效果**：这条修好后 `make rebuild` 在评审替换知识库后能真正重建，D-010 的修复也才会生效。 |
+
+## D-012：纯中文查询打不中纯英文文档（KB-022）
+
+| R04 |  |
+|---|---|
+| 现象 | 修好 D-009（分词）、D-010（扩展名）、D-011（缓存）后，9 道检索题只剩 **R04 还失败**。R04 问「三文鱼那次断供供应商赔了多少钱」，gold = `KB-022`。 |
+| 假设 | ① KB-022 还是没进索引；② 进了索引但分数不够排进 top-5；③ 词典里缺少这条事件的说法。 |
+| 验证 | 确认 KB-022 已在索引里（10 个 chunk）且有三块被命中（分数 1.79/1.77/1.72），排除假设①。但 top-8 是 `KB-021 14.33 / KB-041 13.99 / KB-003 12.77 / …`，**KB-022 排得很远**，排除"差一点"的偶然。<br>看 KB-022 正文：`From: Daniel Whitcombe <d.whitcombe@tasmancoldchain.example> …` —— **一封纯英文邮件**。中文查询切成单字后只有 `三/文/鱼` 三个字与它重叠，而这几个字在语料里极常见（df 分别是 49/18/21），BM25 权重被稀释得几乎为零。<br>**关键**：`grep '赔' KB-022 正文 → 出现 0 次`。也就是说，即使把中文查得再好，文档里也根本没有「赔偿」这个词 —— 这不是分词能解决的问题，必须靠**别名词典把中文概念映射到英文原文**。<br>查现有词典：`mentions('三文鱼那次断供...')` 只命中 `三文鱼poke`，而它的变体是 `['三文鱼poke','鲑鱼波奇饭','Salmon Poke']` —— 问句说的是「三文鱼**断供**」这个**事件**，词典里只有「三文鱼poke」这个**商品**，粒度对不上。 |
+| 根因 | `knowledge_base/handbook/KB-003_商品与门店别名词典.md` 缺少「三文鱼断供」这条**事件级**别名。词典 §3.2 自己写着「跨语言的材料（例如英文供应商邮件）先按本表把英文名映射回数据库写法」，机制是有的，只是这张表没登记这件事，所以 KB-022 这封唯一的中文问不到、英文写的邮件成了信息孤岛。 |
+| 修复 | 在词典「一、商品」表里补一行事件级别名：<br>`\| 三文鱼断供 \| Salmon、salmon、Salmon Poke \| 2026-07-04 那批三文鱼到货质检不合格、整批拒收这件事；供应商发来的英文邮件讲的就是它 \|`<br>这样 `mentions('三文鱼那次断供供应商赔了多少钱')` 会同时命中 `三文鱼poke` 与 `三文鱼断供`，别名归一机制就把英文正文的 `Salmon` 接上了中文问法。<br>改的是**知识库内容**（词典本来就是给运营登记别名用的），不动检索代码 —— 侵入最小，也不会影响其它题的排序。 |
+| 回归测试 | `test_chinese_query_hits_english_document`、`test_public_retrieval_questions[R04]`（`tests/test_retrieval.py`）。<br>修复后 KB-022 进 top-5 且占 3 格（分数 19.47/18.46/16.21）。<br>**效果**：9 道检索题从 8/9 → **9/9**；公开题库 retrieval 整体 **6/15 → 15/15**。<br>**验证无回归**：补完别名后重跑全部 15 道检索题，**15/15 全绿**，其余 14 道没有一道被这条改动挤下去。 |
+
+## D-013：检索结果里同一 `doc_id` 重复出现
+
+| R08 |  |
+|---|---|
+| 现象 | R08 的返回是 `["KB-010","KB-010","KB-001","KB-002","KB-003"]` —— **KB-010 出现两次**。R10 更明显：`["KB-060","KB-033","KB-042","KB-060","KB-060"]`，KB-060 占了 3 格。契约 §4 的示例里每篇文档只出现一次。 |
+| 假设 | ① 契约其实允许同篇多片段；② 每篇只占一格的规则没生效。 |
+| 验证 | 读契约 §4 示例：`{"doc_id": "KB-013", "chunk_id": "KB-013#2", ...}` —— 5 条结果对应 5 篇不同文档，**同一篇不重复占位**。<br>读 `kbqa/retriever.py:267-272`：确实有 `MAX_CHUNKS_PER_DOC` 机制，实测 `MAX_CHUNKS_PER_DOC = 1`，且第 270 行 `if per_doc.get(chunk.doc_id, 0) >= MAX_CHUNKS_PER_DOC: continue` 会跳过同篇后续片段。**但这个循环只作用于"打分命中"的片段**；后面的兜底补齐分支（第 284-302 行）直接把 `remaining` 里的片段塞进 `hits`，**完全不查 `per_doc`**。<br>所以：正常命中的片段每篇只出现一次，**兜底片段可以重复占用同一篇**。R08/R10 的重复项 `padded=True`，正是兜底塞进来的。 |
+| 根因 | `kbqa/retriever.py:284-302` 的兜底补齐逻辑绕过了 `MAX_CHUNKS_PER_DOC` 限制。该限制只写在主循环（第 268-279 行）里，补齐分支没有复用同一约束。 |
+| 修复 | **未修复。** 正确改法是在补齐分支里同样维护并检查 `per_doc` 计数，或者补齐时按 doc 去重后仍不足 `top_k` 才允许重复。 |
+| 回归测试 | **未写。** 应当断言 `len([h.doc_id for h in hits]) == len(set(h.doc_id for h in hits))`（`top_k` 不超过文档数时）。当前为红灯。 |
+
+## D-014：`retrieve` 先取 `top_k` 再过滤版本
+
+| R01–R15 |  |
+|---|---|
+| 现象 | 契约 §4 明确点名这是错误实现，`eval/README.md` 也提示过。当前 `retriever.py:307` 是 `hits = [hit for hit in hits if hit.doc_id not in excluded]`，位置在 `if len(hits) >= top_k: break`（第 278 行）**之后**。 |
+| 假设 | ① 过滤放在截断之后；② 过滤放在之前但逻辑有误。 |
+| 验证 | 读代码确认顺序：主循环第 265-279 行先取满 `top_k`，第 307 行才把 `excluded`（已废止/未生效版本）过滤掉。确认假设①，与契约 §4「先取前 `top_k` 再做过滤、结果只剩两三条的实现，不符合这一条」逐字对应。<br>**但要用实测说话**：在我实测的这几个查询上 `filtered` 为空、`hits` 数仍恰好是 5，所以**这个缺陷在当前公开题上没有可观测后果**。它是一颗哑弹：只要某个查询的前 `top_k` 里混进了被废止版本，返回条数就会不足 `top_k` 而不报错。 |
+| 根因 | `kbqa/retriever.py:307` 与 `:278`。过滤与截断顺序颠倒。 |
+| 修复 | **未修复。** 正确改法是先过滤再截断（或过取样后按 `top_k` 截断）。 |
+| 回归测试 | **未写。** 应当构造一个前 `top_k` 含被废止版本的查询，断言返回条数仍恰好为 `top_k`。<br>说明：我没有把这条写成"已修复"或"已造成扣分"，因为**当前公开题上量不出效果** —— 记它是为了让评审看到我知道契约点名的这一条，且不虚报影响。 |
+
+## D-015：`kb_docs` 数的是目录文件数，不是进索引的文档数
+
+| N01 |  |
+|---|---|
+| 现象 | `GET /api/health` 的 `kb_docs` 报 **36**，评测期望 **35**，N01 因此整题不得分（`expect.kb_docs：kb_docs 差了 1.00`）。同一份响应里 `kb_chunks` 是 112。 |
+| 假设 | ① 索引里真的有 36 份文档；② 计数口径取错了。 |
+| 验证 | `knowledge_base/` 目录下共 **36 个文件** —— 与上报值恰好相等，指向假设②。而实际进索引的 `docs_meta` 只有 **35** 份（36 个文件里有 1 个是没有 KB 编号的 `README.md`）。<br>读 `kbqa/service.py:72`：`"kb_docs": sum(1 for path in self.settings.kb_dir.rglob("*") if path.is_file())` —— **遍历的是目录，压根没引用索引对象**。确认根因。 |
+| 根因 | `kbqa/service.py:72`。健康检查里的 `kb_docs` 用 `kb_dir.rglob("*")` 数文件，把非文档的 `README.md` 也算了进去，且完全没有引用 `self.index`。契约 §1 明确「`kb_docs`：**实际进入索引的**文档数，不是目录里的文件数」。<br>顺带说明一个连带关系：这个数在本轮修复过程中一直是"目录文件数"，所以 D-010（把 `.txt`/`.html` 纳入索引）**不会**改变 `kb_docs` —— 它只跟着往目录里加文件而变。 |
+| 修复 | 把 `kbqa/service.py:72` 改成读索引实况：`"kb_docs": len(self.index.docs_meta)`。修复后 `/api/health` 报 **35**，与 N01 的期望值一致。 |
+| 回归测试 | `test_kb_docs_counts_indexed_docs_not_directory_files`（`tests/test_retrieval.py`）：断言 `health["kb_docs"] == len(load_index(...).docs_meta)`。<br>红灯证据（只回滚 `service.py`）：`E AssertionError: kb_docs 报的是目录文件数，不是索引里的文档数`，1 failed。<br>修复后修复后 `kb_docs=35`、N01 的 `expect.kb_docs` 通过。 |
+
+

@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-SUPPORTED_SUFFIXES = {".md", ".markdown"}
+SUPPORTED_SUFFIXES = {".md", ".markdown", ".txt", ".html"}
 
 #: 文件名开头的编号就是 doc_id，与文件格式无关（契约 §0）。
 _DOC_ID = re.compile(r"^(KB-\d+)")
@@ -231,6 +231,7 @@ def load_knowledge_base(kb_dir: Path) -> tuple[list[Document], list[str]]:
         if not path.is_file() or path.name.startswith("."):
             continue
         if path.suffix.lower() not in SUPPORTED_SUFFIXES:
+            warnings.append("跳过不支持的文件类型：%s" % path.name)
             continue
         document = load_document(path)
         if document is None:

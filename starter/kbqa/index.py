@@ -12,18 +12,32 @@ from typing import Optional
 
 from .aliases import AliasTable, build_alias_table
 from .chunker import CHUNKER_VERSION, Chunk, chunk_documents
-from .loader import Document, load_knowledge_base
+from .loader import SUPPORTED_SUFFIXES, Document, load_knowledge_base
 from .tokenizer import TOKENIZER_VERSION, tokenize
 
-INDEX_VERSION = "bm25-3"
+INDEX_VERSION = "bm25-4"
 K1 = 1.5
 B = 0.75
 
 
 def content_key(kb_dir: Path) -> str:
-    """缓存键：三个版本号拼起来哈希一下。改了切块或分词，键就变，缓存自动失效。"""
+    """缓存键：版本号 + 语料指纹。
+
+    只哈希版本号是不够的：知识库换了内容但版本号没变时，缓存会一直命中旧索引，
+    重建命令等于没执行（契约 §8 要求能从目录重新生成索引）。
+    这里把每个受支持文件的相对路径、大小、mtime、内容哈希一起算进去。
+    """
     digest = hashlib.sha256()
     digest.update(("%s|%s|%s\n" % (INDEX_VERSION, CHUNKER_VERSION, TOKENIZER_VERSION)).encode())
+    sources = sorted(
+        path for path in kb_dir.rglob("*")
+        if path.is_file() and not path.name.startswith(".")
+        and path.suffix.lower() in SUPPORTED_SUFFIXES
+    )
+    for path in sources:
+        stat = path.stat()
+        digest.update(("%s\x00%d\x00%d\x00" % (path.name, stat.st_size, int(stat.st_mtime))).encode())
+        digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode())
     return digest.hexdigest()
 
 
