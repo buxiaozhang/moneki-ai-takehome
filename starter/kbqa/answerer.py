@@ -14,6 +14,7 @@ from .planner import Plan
 from .retriever import Retriever, SearchResult
 from .schemas import Answer
 from .tokenizer import content_tokens, tokenize
+from .trace import current as current_trace
 
 #: 拒答闸门。两个互补的信号：
 #: `vocab` —— 问题里的词有多少在整个知识库的词表里出现过（“工资”“下雨”一个都找不到）；
@@ -48,11 +49,17 @@ class Answerer(HybridAnswers):
     # -- 基础设施 ---------------------------------------------------------------
 
     def _call(self, evidence: list[dict], name: str, **params) -> dict:
+        # 调试面板要知道"这一步到底跑了哪个工具、参数是什么、花了多久"。
+        # trace 在这里通过线程本地变量取，不用把 trace 一路传进每个子方法。
+        trace = current_trace()
+        started = time.perf_counter()
         result = getattr(self.tools, name)(**params)
         trimmed = result
         if name == "daily_metrics" and len(result.get("days", [])) > 31:
             trimmed = {"days": result["days"][:31], "days_total": len(result["days"])}
         evidence.append({"tool": name, "params": params, "result": trimmed})
+        if trace is not None:
+            trace.step("tool", {"tool": name, "params": params}, started=started)
         return result
 
     def _scope(self, plan: Plan, window=None) -> str:

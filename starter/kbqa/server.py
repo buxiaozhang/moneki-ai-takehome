@@ -114,3 +114,9 @@ def data_quality() -> dict:
         "data_period": current.data_period,
         "kb_warnings": current.index.warnings,
     }
+
+
+# 看板页面、流式接口与调试接口都在 api_ui.py，不属于契约，单独维护。
+from . import api_ui  # noqa: E402
+
+api_ui.install(app)

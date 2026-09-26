@@ -20,7 +20,7 @@ from .retriever import Retriever
 from .sessions import SessionStore
 from .toolspec import TOOL_NAMES, TOOLS
 from .tools import DataTools
-from .trace import Trace, TraceStore
+from .trace import Trace, TraceStore, capture
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _INT_PARAMS = {"top_k", "limit"}
@@ -67,6 +67,8 @@ class Service:
         return {
             "status": "ok",
             "llm_mode": self.settings.llm_mode,
+            # 契约 §1 只要求 llm_mode；下面这组是附加的，用来说明"为什么是 mock"。
+            "llm": self.settings.llm_diagnostics(),
             "kb_docs": sum(1 for path in self.settings.kb_dir.rglob("*") if path.is_file()),
             "kb_chunks": len(self.index.chunks),
             "valid_sales_rows": self.tools.valid_sales_rows(),
@@ -135,7 +137,7 @@ class Service:
             question=question or "",
             session_id=session_id,
         )
-        answer = self._answer(trace, session_id, question or "")
+        answer = self.answer_with_trace(trace, session_id, question or "")
         payload = {
             "answer": answer.answer,
             "answer_type": answer.answer_type,
@@ -143,9 +145,21 @@ class Service:
             "data_evidence": answer.data_evidence,
             "trace_id": trace.trace_id,
         }
-        trace.step("response", {"answer_type": answer.answer_type, "notes": answer.notes})
-        self.traces.save(trace)
         return payload
+
+    def answer_with_trace(self, trace: Trace, session_id: Optional[str], question: str) -> Answer:
+        """跑完一轮问答并留档。"""
+        try:
+            with capture(trace):
+                try:
+                    answer = self._answer(trace, session_id, question or "")
+                except Exception as exc:  # noqa: BLE001 - 兜底，保证永远有一个像样的回答
+                    trace.error("answer", exc)
+                    answer = Answer(answer="抱歉，我暂时无法回答。", answer_type="refusal")
+            trace.step("response", {"answer_type": answer.answer_type, "notes": answer.notes})
+            return answer
+        finally:
+            self.traces.save(trace)
 
     def _answer(self, trace: Trace, session_id: Optional[str], question: str) -> Answer:
         try:

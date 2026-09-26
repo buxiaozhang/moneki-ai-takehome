@@ -3,3 +3,12 @@ var/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# 大模型配置里有真实 Key，绝不入库（契约 §7.2 第四条按红线处理）。
+# .env.example 是模板，没有真实 Key，照常提交。
+../.env
+.env.local
+.env.*.local
+
+# 调试产物
+llm_traffic.jsonl
