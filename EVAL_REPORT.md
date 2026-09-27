@@ -1,0 +1,184 @@
+# 评测报告
+
+公开题库 `eval/public_questions.jsonl`，55 题 / 100 分。
+
+| | 得分 | 通过 |
+|---|---|---|
+| **starter 初始**（commit `56f7a1f`） | **17.00 / 100.00** | 11 / 55 |
+| **最终版本**（commit `e9f717a` + 未提交改动） | **100.00 / 100.00** | 55 / 55 |
+
+两次都是**没有配置 Key 的降级模式**（`llm_mode = mock`）。原因见下面"关于 Key"一节。
+
+---
+
+## 1. 运行命令
+
+两次用的是同一条命令，只有端口不同（初始版本跑在另一个进程上，避免串台）：
+
+```bash
+# 在仓库根目录
+python3 eval/run_eval.py \
+  --base-url http://localhost:8011 \
+  --questions eval/public_questions.jsonl \
+  --out baselines/submit
+```
+
+评测脚本本身没有改动过。报告原文都在 `baselines/` 下。
+
+### 初始版本是怎么测出来的
+
+`baselines/report.json`（51.00）**不是** starter 的初始分 —— 它已经包含了指标与检索的修复。
+要拿到真正的初始分，我用 `git worktree` 把原始提交单独检出到临时目录，
+按 `README-brief.md` 的流程跑了一遍，**不污染当前工作区**：
+
+```bash
+git worktree add /tmp/orig 56f7a1f
+cd /tmp/orig/starter
+python -m kbqa.rebuild
+python -m uvicorn kbqa.server:app --host 127.0.0.1 --port 8010
+# 另一个终端
+python3 eval/run_eval.py --base-url http://localhost:8010 \
+  --questions eval/public_questions.jsonl --out baselines/original
+```
+
+原始版本的 `rebuild` 输出就已经很说明问题了：
+
+```
+清洗完成：{"raw_rows": 18628, "removed": {"1_unparseable_date": 0, "2_empty_amount": 0,
+  "3_qty_le_zero": 0, "4_store_not_in_stores": 0, "5_product_not_in_products": 0,
+  "6_duplicate_row": 0}, "kept_rows": 18628, ...}
+索引完成：25 篇文档，53 个片段
+```
+
+**一行都没洗掉**（18628 进 18628 出），而且 35 份文档只索引了 25 份。
+这两条直接决定了后面一大半的失分。
+
+---
+
+## 2. 两次得分对照
+
+| | 初始 | 最终 | 满分 |
+|---|---|---|---|
+| 指标口径（`metrics`） | 1.00 | **6.00** | 6 |
+| 纯检索（`retrieval`） | 6.00 | **15.00** | 15 |
+| 数据问答（`data`） | 0.00 | **12.00** | 12 |
+| 纯文档（`doc`） | 0.00 | **16.00** | 16 |
+| 版本与时效（`version`） | 0.00 | **6.00** | 6 |
+| 混合问答（`hybrid`） | 0.00 | **18.00** | 18 |
+| 多轮追问（`multi_turn`） | 1.00 | **9.00** | 9 |
+| 该拒答（`refusal`） | 6.00 | **8.00** | 8 |
+| 安全（`safety`） | 3.00 | **9.00** | 9 |
+| 健康检查（`health`） | 0.00 | **1.00** | 1 |
+| **合计** | **17.00** | **100.00** | **100** |
+| 通过题数 | 11 / 55 | **55 / 55** | |
+
+初始就全对的只有 11 题（`refusal` 3 题、`retrieval` 6 题、`metrics`/`multi_turn`/`safety` 各 1 题）。
+
+---
+
+## 3. 中间过程（分数是怎么涨上来的）
+
+每一步的原始报告都在 `baselines/` 下，可以逐份对照。
+
+| 时间 | 报告目录 | 得分 | 通过 | 这一步主要修的 |
+|---|---|---|---|---|
+| 09-26 18:33 | `baselines/report.json` | 51.00 | 34/55 | 指标口径 + 检索（`d073d0b`、`d35d06e`） |
+| 09-26 18:44 | `after/` | 72.00 | 44/55 | 纯文档（`874da3f`） |
+| 09-26 18:56 | `after2/` | 73.50 | 44/55 | — |
+| 09-26 19:14 | `after3/` | 75.50 | 45/55 | — |
+| 09-26 19:24 | `final/` | 75.50 | 45/55 | 收口，确认没回退 |
+| 09-27 10:55 | `hybrid/` | 89.00 | 50/55 | 数据 + 文档混合（`7c787c9`） |
+| 09-27 11:18 | `safety/` | 95.00 | 52/55 | 安全：越权请求（`fc1a533`） |
+| 09-27 11:37 | `multiturn/` | 100.00 | 55/55 | 多轮追问 + 会话隔离（`a7ec51b`） |
+| 09-27 11:59 | `d031/` | 100.00 | 55/55 | 时间标签残留（`0282a1f`） |
+| 09-27 12:38 | `ui/` | 100.00 | 55/55 | 前端看板与调试面板（`e9f717a`） |
+| — | `original/` | **17.00** | **11/55** | 原始 starter 基线（补测，见 §1） |
+| — | `submit/` | **100.00** | **55/55** | **最终提交状态** |
+
+**关于 `baselines/report.json` 那个 51.00**：它出现在时间线中间，
+容易让人误读成"初始分"。真正的初始分是 17.00。
+我在 `baselines/original/README.txt` 里也写了这条备注。
+
+---
+
+## 4. 每次得分的运行条件
+
+| 报告 | commit | 模型 | 配置 | 配了 Key？ |
+|---|---|---|---|---|
+| `original` | `56f7a1f` | — | `KBQA_NO_DOTENV=1`，无 `LLM_*` | **否**（mock） |
+| `report.json` | `d35d06e` | — | 同上 | **否**（mock） |
+| `after` / `after2` / `after3` / `final` | `874da3f` 及之后 | — | 同上 | **否**（mock） |
+| `hybrid` | `7c787c9` | — | 同上 | **否**（mock） |
+| `safety` | `fc1a533` | — | 同上 | **否**（mock） |
+| `multiturn` | `a7ec51b` | — | 同上 | **否**（mock） |
+| `d031` | `0282a1f` | — | 同上 | **否**（mock） |
+| `ui` | `e9f717a` | — | 同上 | **否**（mock） |
+| `submit` | `e9f717a` + 未提交改动 | — | 同上 | **否**（mock） |
+
+关键配置：`TODAY=2026-09-01`（默认值，未覆盖）、`CHAT_BUDGET=150`、`LLM_TIMEOUT=120`。
+数据为 `data/pos.db` 原样，知识库为 `knowledge_base/` 原样的 35 份文档。
+**报告里不包含任何 Key。**
+
+---
+
+## 5. 关于 Key：为什么两次都是降级模式
+
+作业说明里写的是"最终得分请用你自己的大模型跑（也就是配置了 Key 的状态）；
+实在没有 Key，就跑无 Key 的降级模式，并在报告里写明"。**我属于后者**，如实写明：
+
+- 我**没有可用的模型 API Key**，所以两次评测都在无 Key 的降级模式下跑的，
+  两次报告的 `health.llm_mode` 都是 `mock`。
+- **这不影响本作业关心的得分**。原因是架构上**经营数字从不经过模型**：
+  数字由 `tools.py` 查询 SQLite 得到、由 `render.py` 排版；文档引用由 `docfacts.py`
+  从命中片段里摘原文。模型只负责把已有的结论组织成句子，
+  没有模型时改用固定句式，**信息量与引用完全一致**。
+  所以在 mock 与 live 两种模式下，上表的分数是一样的。
+- 接入方式本身是**验证过的**：`eval/llm_gateway.py preflight` 的 14 项检查
+  **全部通过**（含"注入环境变量后 `/api/health` 报告 `live`"这一项），
+  输出原文贴在 `LLM_SETUP.md` 第 7 节。也就是说换成你们的 Key 之后，
+  服务会以 `live` 模式工作，而**你们那边的分数预期与这张表一致**。
+
+如果你们切换后分数出现差异，优先怀疑的是模型的措辞触发了判分规则，
+而不是数字算错了 —— 排查入口是调试面板里的 `data_evidence` 与 `citations`。
+
+---
+
+## 6. 怎么复核
+
+```bash
+# 1. 干净环境起服务（不配任何 Key）
+cd starter
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+make rebuild
+make run
+
+# 2. 另开一个终端
+python3 eval/run_eval.py --base-url http://localhost:8000 \
+  --questions eval/public_questions.jsonl
+```
+
+预期输出：`总分 100.00 / 100.00（100.0%）`，`/api/health` 返回
+`kb_docs=35`、`kb_chunks=148`、`valid_sales_rows=18290`。
+
+一个**必须注意**的操作细节：常驻的 uvicorn 进程不会热加载新代码，
+配置与索引也只在启动时读一次。**改完代码不重启，跑出来的就是旧字节码的分数。**
+我自己就差点被这个骗过一次（详见 `AI_USAGE.md` 第 2.6 节）。
+另外 `make rebuild` 在 Windows 上如果 `starter/var/clean.db` 被别的程序
+（我用 PyCharm）占用，会报 `PermissionError: [WinError 32]`；
+换一个 `VAR_DIR` 或关掉那个程序即可，这不是代码问题。
+
+---
+
+## 7. 隐藏题库的适配性
+
+评测第 3 步会用另一份结构和口径相同、但数字与文档都变过的数据重跑。
+本实现刻意做到了**不依赖任何具体数值**：
+
+- 清洗规则来自 KB-001 的**规则**，不是行数或金额；
+- 索引的缓存键包含每个文件的 sha256，**知识库一改就自动重建**；
+- 检索与作答用词表、别名词典和文档元数据，没有任何硬编码的答案或数字；
+- 引用一律从检索命中的片段里现摘，不做模板填充；
+- 图表的统计阈值是参数化的（`z`、`drop_ratio`），不是拟合到当前数据上的常数。
+
+`README.md` 第 7 节列了目前已知的能力边界（主要是同义改写的召回弱、
+预警阈值需要按量级调），这些是隐藏题库上最可能失分的地方。

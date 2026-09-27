@@ -386,6 +386,9 @@ function resetTrace(traceId) {
  * 记录步骤起止时刻，所以这里画的是"相对占比"而不是甘特图。标题也照实写，
  * 免得看的人以为是严格的时间轴。
  */
+/** 耗时构成默认展开；用户折叠后就一直保持折叠，换一次问答也不重置。 */
+let summaryCollapsed = false;
+
 function renderTraceSummary(steps, totalMs) {
   const box = $('trace-summary');
   const timed = (steps || []).filter((step) => Number(step.took_ms) > 0);
@@ -402,9 +405,24 @@ function renderTraceSummary(steps, totalMs) {
   }).join('');
 
   box.hidden = false;
+  box.classList.toggle('collapsed', summaryCollapsed);
+  // 用 button 而不是 div：键盘 Enter/Space 与读屏器开箱可用。
+  // 这里用 box.querySelector 而不是按 id 取 —— 这个按钮是动态生成的，不在
+  // index.html 里，而有一条测试会核对「按 id 取的每个元素都得在 HTML 里存在」。
+  // 那条测试是拿正则扫源码的，所以注释里也别写出按 id 取的写法，会被误判。
   box.innerHTML =
-    `<div class="gantt-head">耗时构成 <span class="muted">各步骤耗时之和 ${fmtMs(sum)}` +
-    (totalMs ? ` · 端到端 ${fmtMs(totalMs)}` : '') + `</span></div>` + bars;
+    `<button type="button" class="gantt-head" aria-expanded="${!summaryCollapsed}">` +
+    `<span class="gantt-caret"></span><span>耗时构成</span> ` +
+    `<span class="muted">各步骤耗时之和 ${fmtMs(sum)}` +
+    (totalMs ? ` · 端到端 ${fmtMs(totalMs)}` : '') + `</span></button>` +
+    `<div class="gantt-body">${bars}</div>`;
+
+  const toggle = box.querySelector('.gantt-head');
+  toggle.addEventListener('click', () => {
+    summaryCollapsed = !summaryCollapsed;
+    box.classList.toggle('collapsed', summaryCollapsed);
+    toggle.setAttribute('aria-expanded', String(!summaryCollapsed));
+  });
 }
 
 /** 用留档重放一遍（历史点击）。 */

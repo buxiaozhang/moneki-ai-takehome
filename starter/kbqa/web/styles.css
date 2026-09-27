@@ -72,6 +72,9 @@ main { padding: 16px; }
 .chat-col, .trace-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .trace-col { max-height: calc(100vh - 84px); }
 .trace-col .panel:first-child { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+/* 表头也是这个纵向 flex 容器的子项，默认会被压扁；压扁了文字同样会溢出到下面两块上。
+   只有 .trace 允许伸缩（它自己 overflow-y:auto，负责吸收多余高度）。 */
+.trace-col .panel:first-child > .panel-head { flex: 0 0 auto; }
 .trace-col .panel:last-child { flex: 0 0 auto; max-height: 30%; display: flex; flex-direction: column; }
 
 .panel {
@@ -386,8 +389,30 @@ code {
 .trace-summary {
   border-bottom: 1px solid var(--line); padding: 10px 12px;
   background: #12151b;
+  /* 它是面板这个纵向 flex 容器的子项，默认 flex-shrink:1。
+     一旦步骤变多（模型调用失败时会多出错误与重试步骤），面板被挤，
+     这块会被压到比内容还矮，行高固定的 .gantt-row 就溢出到下面的步骤列表上，
+     和「规划」那块叠在一起。所以：不许收缩，给它上限并自己滚动。 */
+  flex: 0 0 auto;
+  max-height: 42%;
+  overflow-y: auto;
 }
-.gantt-head { font-size: 12.5px; margin-bottom: 7px; }
+.gantt-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; margin-bottom: 7px;
+  background: none; border: 0; padding: 0; width: 100%;
+  color: inherit; font-family: inherit; text-align: left; cursor: pointer;
+}
+.gantt-head:hover { color: var(--accent); }
+.gantt-caret {
+  width: 0; height: 0; flex: 0 0 auto;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  transform: rotate(90deg); transition: transform .15s;
+}
+.trace-summary.collapsed .gantt-caret { transform: rotate(0deg); }
+.trace-summary.collapsed .gantt-body { display: none; }
+.trace-summary.collapsed .gantt-head { margin-bottom: 0; }
 .gantt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
 .gantt-name {
   width: 96px; flex: 0 0 auto; color: var(--muted); font-size: 11.5px;
