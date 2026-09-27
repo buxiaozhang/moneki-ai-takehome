@@ -1,0 +1,512 @@
+{
+  "generated_at": "2026-09-27 14:27:48",
+  "base_url": "http://localhost:8000",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\public_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": "multi_turn",
+  "total": {
+    "points": 9.0,
+    "earned": 9.0,
+    "ratio": 1.0,
+    "questions": 3,
+    "passed": 3
+  },
+  "per_category": {
+    "multi_turn": {
+      "points": 9.0,
+      "earned": 9.0,
+      "questions": 3,
+      "passed": 3,
+      "ratio": 1.0
+    }
+  },
+  "latency_seconds": {
+    "median": 29.5,
+    "max": 45.578,
+    "total": 100.374
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "live",
+    "llm": {
+      "mode": "live",
+      "missing": [],
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "api_key_set": true,
+      "dotenv": null,
+      "hint": "已配置，问答会调用真实模型。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "T01",
+      "category": "multi_turn",
+      "points": 3.0,
+      "earned": 3.0,
+      "passed": true,
+      "latency_seconds": 25.296,
+      "turns": [
+        {
+          "question": "6 月的净营业额是多少？",
+          "passed": true,
+          "latency_seconds": 8.218,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-001"
+          ],
+          "trace_id": "t-20260901-0068",
+          "answer": "2026 年 6 月（2026-06-01 至 2026-06-30）的全部门店合计：\n\n- **净营业额：¥156,757.00**\n- 有效订单数：4,311 单\n- 客单价：¥36.36\n- 退款金额：¥953.00\n- 销量：6,496 件\n\n口径按现行《指标口径手册 v3》执行，数据取自 POS 销售明细 。\n\n如需按门店或按商品拆分 6 月数据，告诉我一声即可。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "那 7 月呢？",
+          "passed": true,
+          "latency_seconds": 8.219,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0069",
+          "answer": "2026 年 7 月（全部门店）：净营业额 162414.00 元，有效订单数 4446 单，客单价 36.53 元，销量 6789 件，退款金额 494.00 元。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "这两个月的客单价差了多少？",
+          "passed": true,
+          "latency_seconds": 8.859,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0070",
+          "answer": "2026 年 7 月（全部门店）的客单价为 36.53 元，2026 年 6 月（全部门店）为 36.36 元，涨了 0.17 元（+0.47%）。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "category": "multi_turn",
+      "points": 3.0,
+      "earned": 3.0,
+      "passed": true,
+      "latency_seconds": 45.578,
+      "turns": [
+        {
+          "question": "三文鱼poke 七月初为什么停售了？",
+          "passed": true,
+          "latency_seconds": 11.969,
+          "answer_type": "doc",
+          "citations": [
+            "KB-021"
+          ],
+          "trace_id": "t-20260901-0071",
+          "answer": "# 三文鱼poke 临时停售通知\n发布部门：总部供应链部 / 运营部\n发布日期：2026-07-05\n本批次三文鱼到货质检不合格，原料已全部拒收，短期内无法补货。现决定：\n1. **全部门店自 2026-07-06 起临时停售三文鱼poke，停售至 2026-07-12**，7 月 13 日供货恢复后即可恢复销售。\n2. 五家门店（S01 至 S05）当晚在 POS 与外卖平台同步下架三文鱼poke，避免顾客下单后无法出餐；门口和收银台各放一张告知牌。\n3. **向顾客推荐替代品鸡肉poke**，口味和分量最接近，米饭与配菜做法不变；顾客不接受替代的，按正常流程处理，不强推。\n4. 门店现有三文鱼库存已全部封存，不得继续出品，也不得用于员工餐。\n5. 停售期间鸡肉poke 的备货量按平时的 1.5 倍准备，S02 按 2 倍准备；估计不够的，提前一天报供应链部补货。\n6. 顾客询问时统一口径：到货质检不合格，不合格的原料我们不会做给顾客，是主动下架。不展开谈技术细节，不评价供应商。\n质检不合格的具体情况与供应商的处理结果，详见供应商邮件 KB-022，由供应链部对接，门店不对外解释。\n恢复销售前一天，运营部会另发一条恢复通知，门店收到后再上架。\nKB-021《三文鱼poke 临时停售通知》（2026-07-06 起生效）：本批次三文鱼到货质检不合格，原料已全部拒收，短期内无法补货。现决定：\r\n\r\n1. **全部门店自 2026-07-06 起临时停售三文鱼poke，停售至 2026-07-12**，7 月 13 日供货恢复后即可恢复销售。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_any",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "那停售期间让顾客换成什么？",
+          "passed": true,
+          "latency_seconds": 10.062,
+          "answer_type": "doc",
+          "citations": [
+            "KB-021",
+            "KB-040"
+          ],
+          "trace_id": "t-20260901-0072",
+          "answer": "停售期间统一向顾客推荐的是**鸡肉poke**（商品编号 P05），门店引导口径如下 ：\n\n- **推荐理由**：鸡肉poke 与三文鱼poke 口味和分量最接近，米饭与配菜做法完全不变，替换后顾客体验落差最小。\n- **不强推**：顾客不接受替代方案的，按正常流程处理（可照常点其他商品或退单），不要硬性推销。\n- **统一话术**：只说“到货质检不合格、不合格原料不会做给顾客，因此主动下架”，不展开谈技术细节、不评价供应商；质检不合格的具体情况和供应商处理结果由供应链部对接，门店不对外解释 。\n- **备货配合**：停售期间鸡肉poke 备货按平时 1.5 倍准备（S02 按 2 倍），不足的提前一天报供应链部 。\n\n另外提醒一点：鸡肉poke 不含鱼类，但含大豆和芝麻，属于致敏原；如果顾客是对鱼类过敏而原本要选三文鱼poke，替换时按致敏原信息确认一下更稳妥 。\n\n关于停售原因，本次口径就是到货质检不合格、原料整批拒收、短期无法补货，全部门店 7 月 6 日至 7 月 12 日停售，7 月 13 日恢复供货后即可恢复销售 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "供应商后来赔了多少？",
+          "passed": true,
+          "latency_seconds": 23.547,
+          "answer_type": "doc",
+          "citations": [
+            "KB-022",
+            "KB-021",
+            "KB-029"
+          ],
+          "trace_id": "t-20260901-0073",
+          "answer": "**供应商赔付金额：8,600 元人民币。**\n\n按供应商 Tasman Cold Chain Seafood 的书面回复，事故原因是冷藏车（reefer）故障，2026-07-04 到货的 3 个托盘三文鱼被整批拒收。供应商的处理方式是**开一张 8,600 元的贷项通知单（credit note），冲抵我们 7 月的应付账款**，该金额覆盖被拒收整批货的全部货值；我方无需另行付款，也无需另外索赔，贷项通知单在 7 月 6 日开具、当周即可在其对账单上体现 。\n\n两点补充说明：\n\n- 这 8,600 元是**货值补偿**，不是对停售期间营业损失的赔偿，邮件里没有提到任何额外的营业损失赔付 。\n- 赔付细节的对接方是总部供应链部，相关邮件在供应链部归档；门店遇到此类问题一律走供应链部，不要自行联系供应商，对外也用统一口径（到货质检不合格、主动下架），不展开谈技术细节、不评价供应商 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T03",
+      "category": "multi_turn",
+      "points": 3.0,
+      "earned": 3.0,
+      "passed": true,
+      "latency_seconds": 29.5,
+      "turns": [
+        {
+          "question": "牛肉poke 现在多少钱一份？",
+          "passed": true,
+          "latency_seconds": 13.578,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-025"
+          ],
+          "trace_id": "t-20260901-0074",
+          "answer": "牛肉poke 现在的售价是 45.00 元（KB-025《2026 年 7 月调价通知》（2026-07-01 起生效））。数据库里最近一次成交的实收单价是 45.00 元，与通知一致。注意 products 维表里的建档价仍是 42.00 元，由财务月底统一更新，属于维表滞后，不能当成交价。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "那 6 月 18 号那天呢？",
+          "passed": true,
+          "latency_seconds": 15.922,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-023",
+            "KB-025",
+            "KB-050"
+          ],
+          "trace_id": "t-20260901-0075",
+          "answer": "6 月 18 号那天牛肉poke 有两个价，取决于门店：\n\n**S02（Makai Poke，上海·静安）当天是活动价 29.00 元/份。** 这是 2026 年 618 活动方案定的：只打这一个单品、这一家店，6 月 18 日当天营业时间内有效，每单限购 3 份（超出部分按日常售价结算），仅限堂食与自提，第三方外卖平台不参与 。\n\n**其余四家门店当天不参与活动，仍按日常售价 42.00 元/份**（45 元是 7 月 1 日才执行的新价，6 月 18 日还没生效）。\n\n数据库里当天的实收单价分布也印证了这一点：\n\n| 实收单价 | 笔数 | 门店 |\n|---|---|---|\n| 29.00 元 | 53 | S02 |\n| 42.00 元 | 6 | S05（5 笔）、S03（1 笔） |\n\n所以答案是：**在 S02 是 29.00 元，在其他门店是 42.00 元。** 当天没有出现 45.00 元的成交。\n\n顺便提一句，S02 店长周报里写的“卖了大概 150 份、营业额五千出头”是他收档时数小票的估数，他自己也注明“具体多少还是得看系统，别拿我这个数去做报表”，这两个数不要用于分析 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_any",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

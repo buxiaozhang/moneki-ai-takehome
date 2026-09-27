@@ -1,0 +1,312 @@
+{
+ "note": "由 tests/fixtures/make_trace_fixture.py 从真实服务抓取，勿手改",
+ "chat": {
+  "answer": "2026-06-08 至 2026-06-14（S03 Juicy Bao Bao）：净营业额 3630.00 元，有效订单数 102 单，客单价 35.59 元，销量 165 件，退款金额 0.00 元。其中 2026-06-08、2026-06-09、2026-06-10、2026-06-11 共 4 天没有任何营业额。作为对照，上一个同样长度的区间（2026-06-01 至 2026-06-07）净营业额为 6117.00 元。原因见 KB-020《S03 Juicy Bao Bao 临时停业通知》（2026-06-08 起生效）：1. **S03 自 2026-06-08 起停业 4 天，即 6 月 8 日至 6 月 11 日不营业**，堂食、外卖、预订全部暂停。\r\n2. **2026-06-12 起恢复正常营业**，营业时间不变。\r\n3. 停业期间外卖平台门店状态置为“休息中”，由市场部提前一天在会员群和门店公众号说明，不做促销预告。",
+  "answer_type": "hybrid",
+  "citations": [
+   {
+    "doc_id": "KB-020",
+    "quote": "1. **S03 自 2026-06-08 起停业 4 天，即 6 月 8 日至 6 月 11 日不营业**，堂食、外卖、预订全部暂停。\r\n2. **2026-06-12 起恢复正常营业**，营业时间不变。\r\n3. 停业期间外卖平台门店状态置为“休息中”，由市场部提前一天在会员群和门店公众号说明，不做促销预告。"
+   }
+  ],
+  "data_evidence": [
+   {
+    "tool": "query_metrics",
+    "params": {
+     "start": "2026-06-08",
+     "end": "2026-06-14",
+     "store_id": "S03",
+     "product_id": null
+    },
+    "result": {
+     "start": "2026-06-08",
+     "end": "2026-06-14",
+     "store_id": "S03",
+     "product_id": null,
+     "net_revenue": 3630.0,
+     "refund_amount": 0.0,
+     "orders": 102,
+     "aov": 35.59,
+     "qty": 165
+    }
+   },
+   {
+    "tool": "daily_metrics",
+    "params": {
+     "start": "2026-06-08",
+     "end": "2026-06-14",
+     "store_id": "S03",
+     "product_id": null
+    },
+    "result": {
+     "days": [
+      {
+       "date": "2026-06-08",
+       "net_revenue": 0.0,
+       "orders": 0,
+       "aov": null
+      },
+      {
+       "date": "2026-06-09",
+       "net_revenue": 0.0,
+       "orders": 0,
+       "aov": null
+      },
+      {
+       "date": "2026-06-10",
+       "net_revenue": 0.0,
+       "orders": 0,
+       "aov": null
+      },
+      {
+       "date": "2026-06-11",
+       "net_revenue": 0.0,
+       "orders": 0,
+       "aov": null
+      },
+      {
+       "date": "2026-06-12",
+       "net_revenue": 998.0,
+       "orders": 27,
+       "aov": 36.96
+      },
+      {
+       "date": "2026-06-13",
+       "net_revenue": 1534.0,
+       "orders": 40,
+       "aov": 38.35
+      },
+      {
+       "date": "2026-06-14",
+       "net_revenue": 1098.0,
+       "orders": 35,
+       "aov": 31.37
+      }
+     ]
+    }
+   },
+   {
+    "tool": "query_metrics",
+    "params": {
+     "start": "2026-06-01",
+     "end": "2026-06-07",
+     "store_id": "S03",
+     "product_id": null
+    },
+    "result": {
+     "start": "2026-06-01",
+     "end": "2026-06-07",
+     "store_id": "S03",
+     "product_id": null,
+     "net_revenue": 6117.0,
+     "refund_amount": 80.0,
+     "orders": 199,
+     "aov": 30.74,
+     "qty": 288
+    }
+   }
+  ],
+  "trace_id": "t-20260901-0043"
+ },
+ "trace": {
+  "trace_id": "t-20260901-0043",
+  "session_id": "fixture",
+  "question": "S03 六月第二周营业额为什么这么低",
+  "started_at": "2026-09-27T12:44:03.427",
+  "total_ms": 7.4,
+  "steps": [
+   {
+    "step": "plan",
+    "at_ms": 1.1,
+    "took_ms": 1.1,
+    "detail": {
+     "question": "S03 六月第二周营业额为什么这么低",
+     "standalone_question": "S03 六月第二周营业额为什么这么低",
+     "search_query": "S03 六月第二周营业额为什么这么低 S03 Juicy Bao Bao 通知 公告 原因 说明",
+     "intent": "hybrid",
+     "kind": "anomaly",
+     "window": [
+      "2026-06-08",
+      "2026-06-14"
+     ],
+     "compare_window": null,
+     "as_of": "2026-06-14",
+     "year": 2026,
+     "store_id": "S03",
+     "product_id": null,
+     "metric": "net_revenue",
+     "needs_data": true,
+     "needs_docs": true,
+     "refusal": null,
+     "notes": [
+      "识别：指标=net_revenue 门店=S03 商品=全部 时间=['六月第二周']"
+     ]
+    }
+   },
+   {
+    "step": "tool",
+    "at_ms": 2.0,
+    "took_ms": 0.9,
+    "detail": {
+     "tool": "query_metrics",
+     "params": {
+      "start": "2026-06-08",
+      "end": "2026-06-14",
+      "store_id": "S03",
+      "product_id": null
+     }
+    }
+   },
+   {
+    "step": "tool",
+    "at_ms": 2.8,
+    "took_ms": 0.8,
+    "detail": {
+     "tool": "daily_metrics",
+     "params": {
+      "start": "2026-06-08",
+      "end": "2026-06-14",
+      "store_id": "S03",
+      "product_id": null
+     }
+    }
+   },
+   {
+    "step": "tool",
+    "at_ms": 3.5,
+    "took_ms": 0.7,
+    "detail": {
+     "tool": "query_metrics",
+     "params": {
+      "start": "2026-06-01",
+      "end": "2026-06-07",
+      "store_id": "S03",
+      "product_id": null
+     }
+    }
+   },
+   {
+    "step": "search",
+    "at_ms": 5.6,
+    "took_ms": 2.1,
+    "detail": {
+     "query": "S03 六月第二周营业额为什么这么低 S03 Juicy Bao Bao 通知 公告 原因 说明",
+     "expansions": [
+      "Juicy Bao Bao",
+      "JBB",
+      "包包店",
+      "Juicy Bao Bao",
+      "JBB",
+      "包包店",
+      "Juicy Bao Bao",
+      "JBB",
+      "包包店"
+     ],
+     "coverage": 0.354,
+     "hits": [
+      {
+       "doc_id": "KB-020",
+       "chunk_id": "KB-020#1",
+       "score": 103.7044,
+       "padded": false,
+       "dropped_instructions": []
+      },
+      {
+       "doc_id": "KB-032",
+       "chunk_id": "KB-032#1",
+       "score": 66.1332,
+       "padded": false,
+       "dropped_instructions": []
+      },
+      {
+       "doc_id": "KB-042",
+       "chunk_id": "KB-042#2",
+       "score": 52.8564,
+       "padded": false,
+       "dropped_instructions": []
+      },
+      {
+       "doc_id": "KB-061",
+       "chunk_id": "KB-061#1",
+       "score": 29.5805,
+       "padded": false,
+       "dropped_instructions": []
+      },
+      {
+       "doc_id": "KB-003",
+       "chunk_id": "KB-003#6",
+       "score": 28.1043,
+       "padded": false,
+       "dropped_instructions": []
+      }
+     ],
+     "filtered": [
+      {
+       "doc_id": "KB-023",
+       "reason": "文档声明只适用于 S02，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-027",
+       "reason": "文档声明只适用于 S05，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-011",
+       "reason": "该版本自 2026-07-01 起才生效，晚于问题所指的 2026-06-14"
+      },
+      {
+       "doc_id": "KB-013",
+       "reason": "该版本自 2026-06-15 起才生效，晚于问题所指的 2026-06-14"
+      },
+      {
+       "doc_id": "KB-050",
+       "reason": "文档声明只适用于 S02，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-052",
+       "reason": "文档声明只适用于 S05，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-053",
+       "reason": "文档声明只适用于 S01，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-030",
+       "reason": "文档声明只适用于 S01，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-031",
+       "reason": "文档声明只适用于 S02，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-033",
+       "reason": "文档声明只适用于 S04，与问题里的 S03 不符"
+      },
+      {
+       "doc_id": "KB-034",
+       "reason": "文档声明只适用于 S05，与问题里的 S03 不符"
+      }
+     ]
+    }
+   },
+   {
+    "step": "answer_mock",
+    "at_ms": 7.4,
+    "took_ms": 6.3,
+    "detail": {
+     "answer_type": "hybrid"
+    }
+   },
+   {
+    "step": "response",
+    "at_ms": 7.4,
+    "took_ms": null,
+    "detail": {
+     "answer_type": "hybrid",
+     "notes": []
+    }
+   }
+  ],
+  "llm_calls": [],
+  "errors": []
+ }
+}

@@ -18,6 +18,27 @@ sys.path.insert(0, str(ROOT))
 FAKE_TEXT = "退款政策 v2 > 三、时限：外卖订单在订单送达后 24 小时内可以申请退款。"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def hermetic_llm_config():
+    """整套测试默认不读工作目录里的 `.env`。
+
+    本机开发时根目录通常有一份真实 `.env`（接真模型用的）。`load_settings()`
+    会把它读进来，于是：
+      - 断言"没配就是 mock"的用例会变成 live；
+      - 问答用例会去打真实模型，慢、要花钱、结果还不确定 —— 测试本该是确定的。
+
+    这里的测试全部按降级模式写，所以默认把发现逻辑关掉。
+    要验证 `.env` 读取规则的用例传显式路径，不受影响（见 test_config.py）。
+    """
+    previous = os.environ.get("KBQA_NO_DOTENV")
+    os.environ["KBQA_NO_DOTENV"] = "1"
+    yield
+    if previous is None:
+        os.environ.pop("KBQA_NO_DOTENV", None)
+    else:
+        os.environ["KBQA_NO_DOTENV"] = previous
+
+
 @pytest.fixture(scope="session")
 def client(tmp_path_factory):
     os.environ["VAR_DIR"] = str(tmp_path_factory.mktemp("var"))

@@ -26,9 +26,12 @@ make run                     # http://localhost:8000
 ```
 
 Windows PowerShell 把 `.venv/bin/` 换成 `.venv\Scripts\`，命令里用 `.\` 前缀：
+# 提示：如果报错 "系统找不到指定的文件 ...\.venv\Scripts\python.exe"，
+# 请将命令复制到终端执行
 
 ```powershell
-python -m venv .venv; .\.venv\Scripts\pip install -r requirements.txt
+python -m venv .venv; 
+.\.venv\Scripts\pip install -r requirements.txt
 .\.venv\Scripts\python -m kbqa.rebuild     # 等价于 make rebuild
 .\.venv\Scripts\python -m uvicorn kbqa.server:app --host 127.0.0.1 --port 8000
 ```
@@ -326,15 +329,16 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
 
 | 验证 | 命令 | 结果 |
 |---|---|---|
-| 单元/集成测试 | `cd starter && make test` | **209 passed** |
+| 单元/集成测试 | `cd starter && make test` | **217 passed** |
 | 前端 DOM 冒烟 | `make test-web` | **68 项全过**（缺 jsdom 自动跳过） |
-| 公开题库评测（无 Key 降级模式） | `python3 eval/run_eval.py ...` | **100.00 / 100.00，55/55** |
-| 公开题库评测（配 Key，`deepseek-flash`） | 同上 | **93.50 / 90.00**（两次实测） |
+| 公开题库 · 无 Key 降级模式 | `python3 eval/run_eval.py ...` | **100.00 / 100.00，55/55** |
+| 公开题库 · 配 Key，`deepseek-flash` | 同上 | **100 / 100 / 96 / 100 / 100**（最近 5 次） |
 | 大模型接入预检 | `python3 eval/llm_gateway.py preflight ...` | **14/14 通过**，见 `LLM_SETUP.md` §7 |
 
-注意 live 模式比降级模式**低 6–10 分** —— 这不是笔误。降级模式走确定性模板，
-措辞与引用完全可控；live 模式由模型决定引用与措辞，会零星触发判分规则。
-原因与已修的两处见 `EVAL_REPORT.md` 第 5 节。**切换模型后应按 90 上下预期。**
+live 模式第一次实测只有 **73.50**：修掉四个真实缺陷（提示词会写出旧版本、
+工具调用不收敛就整题拒答、**内部异常被静默吞掉**、`run_sql` 写错表名炸掉整轮）
+之后才上来的。其中"异常被吞掉"这条最值得看 —— 修好留痕之后，
+才从 trace 里看出后面那个 SQL bug。过程与证据见 `EVAL_REPORT.md` 第 5 节。
 
 评测逐轮提升（每轮报告都在 `baselines/`）：
 
@@ -346,6 +350,7 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
 | 3 | 89.00 | 50/55 | 数据 + 文档混合 |
 | 4 | 95.00 | 52/55 | 安全（越权请求） |
 | 5 | **100.00** | **55/55** | 多轮追问、会话隔离 |
+| 6 · 切到 live | **100.00** | **55/55** | 提示词旧版本、工具收敛、异常留痕、`run_sql` 报错（live 首测只有 73.50） |
 
 初始分是**补测**的：`baselines/report.json` 里的 51.00 已经包含了前两项修复，
 不是真正的起点。真正的起点用 `git worktree` 把原始提交单独检出后跑的，

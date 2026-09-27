@@ -1,0 +1,591 @@
+{
+  "generated_at": "2026-09-27 14:31:19",
+  "base_url": "http://localhost:8000",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\public_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": "doc",
+  "total": {
+    "points": 16.0,
+    "earned": 12.0,
+    "ratio": 0.75,
+    "questions": 8,
+    "passed": 6
+  },
+  "per_category": {
+    "doc": {
+      "points": 16.0,
+      "earned": 12.0,
+      "questions": 8,
+      "passed": 6,
+      "ratio": 0.75
+    }
+  },
+  "latency_seconds": {
+    "median": 11.96,
+    "max": 27.016,
+    "total": 105.811
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "live",
+    "llm": {
+      "mode": "live",
+      "missing": [],
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "api_key_set": true,
+      "dotenv": "D:\\评测作业\\moneki-ai-takehome\\.env",
+      "hint": "已配置，问答会调用真实模型。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "C01",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 9.234,
+      "turns": [
+        {
+          "question": "外卖订单多久内可以申请退款？",
+          "passed": true,
+          "latency_seconds": 9.234,
+          "answer_type": "doc",
+          "citations": [
+            "KB-013"
+          ],
+          "trace_id": "t-20260901-0005",
+          "answer": "**外卖订单：在送达后 24 小时内提出退款申请，超过 24 小时不再受理。** 另外要求能在 POS 或小程序里查到对应订单 。\n\n补充几点相关的现行规定（同一份政策）：\n\n- 堂食订单须当场提出，顾客离店后不再受理；自提订单比照堂食处理，取餐离店后不再受理 。\n- 单笔退款金额不超过 ¥200 的，当班店员核实后即可操作；单笔超过 ¥200 需店长审批；同一顾客一个月内第三次及以上的退款申请一律报店长审批 。\n\n这份政策（退款政策 v2）自 2026-06-15 起生效，目前有效 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "cite_none",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 27.016,
+      "turns": [
+        {
+          "question": "有顾客问牛肉poke 里有哪些过敏原，怎么答？",
+          "passed": true,
+          "latency_seconds": 27.016,
+          "answer_type": "doc",
+          "citations": [
+            "KB-040"
+          ],
+          "trace_id": "t-20260901-0006",
+          "answer": "按品控部的《过敏原对照表》，**牛肉poke（P06）含有 3 类过敏原：麸质、大豆、芝麻**；鱼类、甲壳类、蛋、奶、坚果、酒精均不含 。\n\n回答顾客时建议照表直说，不要凭印象判断或说\"应该没有\"；如果顾客的过敏原正好落在这三类里、或者情况拿不准，就建议他换一款商品 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "cite_max",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 11.984,
+      "turns": [
+        {
+          "question": "Super Souper 现在周五晚上营业到几点？",
+          "passed": true,
+          "latency_seconds": 11.984,
+          "answer_type": "doc",
+          "citations": [
+            "KB-062",
+            "KB-042"
+          ],
+          "trace_id": "t-20260901-0007",
+          "answer": "**Super Souper（S01，上海·徐汇）现在周五的闭店时间是 23:00。**\n\n- 自 2026 年 8 月 15 日起，该店每周五、周六延长营业至 23:00（原闭店时间 21:30）；周日至周四不变，仍为 10:30–21:30 。\n- 本次调整只涉及 Super Souper 一家门店，其余门店营业时间不变 。\n- 另按门店营业时间表的说明，外卖渠道接单时间与堂食一致，闭店前 30 分钟停止接单，因此周五外卖大约在 22:30 停止接单 。\n\n门店档案上的标准营业时间 10:30–21:30 是常规值，属于临时/专项调整的情形以通知为准 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 14.25,
+      "turns": [
+        {
+          "question": "三文鱼那次断供，供应商最后赔了我们多少钱？",
+          "passed": false,
+          "latency_seconds": 14.25,
+          "answer_type": "refusal",
+          "citations": [],
+          "trace_id": "t-20260901-0008",
+          "answer": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "doc",
+                "hybrid"
+              ],
+              "actual": "refusal",
+              "reason": "answer_type 应是 doc/hybrid 之一"
+            },
+            {
+              "name": "fact_all",
+              "passed": false,
+              "expected": {
+                "docs": [
+                  "KB-022"
+                ],
+                "all_of": [
+                  "8600"
+                ]
+              },
+              "actual": {
+                "answer": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+                "quoted": []
+              },
+              "reason": "回答里没提到，KB-022 的 quote 里也没有：8600"
+            },
+            {
+              "name": "cite_all",
+              "passed": false,
+              "expected": [
+                "KB-022"
+              ],
+              "actual": [],
+              "reason": "没有引用 KB-022"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 7.843,
+      "turns": [
+        {
+          "question": "顾客要开发票，怎么跟他说？",
+          "passed": true,
+          "latency_seconds": 7.843,
+          "answer_type": "doc",
+          "citations": [
+            "KB-061",
+            "KB-052"
+          ],
+          "trace_id": "t-20260901-0009",
+          "answer": "常见问题 FAQ - 合味餐饮\n合味餐饮\n首页\n门店\n菜单\n会员\n常见问题\n加盟合作\n关于我们\n常见问题 FAQ\n最后更新：2026-03-01  |  维护：总部市场部  |  适用范围：Super Souper、Makai Poke、Juicy Bao Bao、Arigato Sando、Super Tetsudo 五家门店\n怎么开发票？\n发票  小程序\n发票在小程序“我的订单”里自助开具。找到对应订单点“开发票”，填抬头和税号后提交，电子发票会发到填写的邮箱，通常几分钟内到，最长不超过 24 小时。\n门店不提供纸质发票，也不代开。订单超过 90 天的无法自助开具，请联系客服处理。\n可以带宠物进店吗？\n宠物  就餐规则\n宠物仅限户外座位，室内区域不能带宠物进入，导盲犬等工作犬除外。\n在户外座位请给宠物牵绳，不要让宠物上椅子和桌面。部分门店没有户外座位，具体以门店现场为准。\n店里有 Wi-Fi 吗？密码是多少？\nWi-Fi\n五家门店都有免费 Wi-Fi。Wi-Fi 密码见小票底部，每张小票上都会印，密码会定期更换，以最新一张小票为准。\n没有小票的话可以问店员。网络由商场或运营商提供，高峰时段速度可能受影响。\n你们上了哪些外卖平台？\n外卖\n外卖平台为美团与饿了么，五家门店都已上线。除此之外还可以在小程序里下自营外卖单。\n平台上的活动和优惠由平台规则决定，可能和门店、小程序不一致，以下单\nKB-061《常见问题 FAQ》（2026-03-01 起生效）：发票在小程序“我的订单”里自助开具。\nKB-052《S05 店长周报 2026-08-03 至 2026-08-09》（2026-08-10 起生效）：1. 收银台和门口都贴了告知，排队的顾客提前说，减少走到收银台才发现的情况。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C06",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 8.625,
+      "turns": [
+        {
+          "question": "退款在净营业额里是怎么算的？",
+          "passed": true,
+          "latency_seconds": 8.625,
+          "answer_type": "doc",
+          "citations": [
+            "KB-001",
+            "KB-013"
+          ],
+          "trace_id": "t-20260901-0010",
+          "answer": "按现行口径手册 **KB-001（指标口径手册 v3，2026-05-01 起生效）** 的定义：\n\n**退款是在净营业额里直接扣减的：**\n\n- **退款行**：清洗后 `amount < 0` 的行。\n- **销售行**：清洗后 `amount > 0` 的行。\n- **净营业额 = 销售行金额之和 + 退款行金额之和**。因为退款行金额本身记的是负数，实际效果就是\"销售减退款\" 。\n- **退款金额** = 退款行金额之和的绝对值，是单独的一个指标，可以理解为被扣掉的那部分有多少 。\n- **有效订单数**只数销售行里不同的 `order_id`，**退款行不单独计为订单**；所以退款会同时压低净营业额和客单价（客单价 = 净营业额 ÷ 有效订单数）。\n\n另外几个和退款统计有关的规则：\n\n- 退款在 POS 里是以负金额行记录的，**沿用原订单号**，不新开订单号；退款行的商品、数量与原订单一致，`amount` 是原金额的相反数 。\n- **退款行按\"实际退款那一天\"的日期统计**，可能晚于原订单日期，所以某天的净营业额里扣的可能是更早日期的订单退款 。\n\n需要的话我可以帮你查某个区间、某门店或某商品的实际退款金额和净营业额。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C07",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 14.922,
+      "turns": [
+        {
+          "question": "S04 为什么不卖吞拿鱼三明治了？",
+          "passed": false,
+          "latency_seconds": 14.922,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-029",
+            "KB-033",
+            "KB-021"
+          ],
+          "trace_id": "t-20260901-0011",
+          "answer": "## 原因\n\nS04 从 2026-08-10 起下架吞拿鱼三明治（P11），是 8 月经营会议上定的，属于菜单调整，不是临时缺货 。会上给的理由有三点：\n\n1. **毛利不达标**：该商品在 S04 已连续两个月毛利率低于 35%。\n2. **损耗偏高**：原料是冷冻吞拿鱼块，拆封后必须当天用完，实际每天都有剩余，备货损耗明显高于其他三明治；而且原料价格短期没有下行空间，靠减分量拉毛利会影响口感，会上否决了这个做法。\n3. **销量偏弱**：销量在三明治类里一直排末位，起不到带客流的作用。\n\n会上同时要求：库存 8 月 9 日前用完，剩余做员工餐消化、不做促销清货；8 月 10 日当天在 POS 和外卖平台同步下架；顾客问起时统一按“菜单调整”解释，并推荐照烧三明治 。其余四家门店本次不动，是否跟进放到 9 月菜单改版里一起评估 。\n\n## 数据印证\n\n从系统数据看，S04 的 P11 在 2026-08-09 还有销售（净营业额 390 元、8 单），**8 月 10 日起至今（8 月 31 日）每天的净营业额和订单数都是 0**，与下架时间一致。5 月 1 日至 8 月 31 日该店 P11 累计净营业额 20,878 元、803 件、528 单。\n\n## 补充说明\n\nS04（Arigato Sando）本身就是主打现做日式三明治的门店，菜单调整对它的影响最直接 。另外提醒一句：7 月那次“三文鱼poke 全门店临时停售”是另一件事，涉及的是轻食门店的 P 系列商品，和 S04 的吞拿鱼三明治不是同一个调整 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": false,
+              "expected": "result 不超过 4096 字节、数字不超过 60 个、sql 是单条 SELECT",
+              "actual": "[{\"tool\": \"query_metrics\", \"params\": {\"start\": \"2026-05-01\", \"end\": \"2026-08-31\", \"store_id\": \"S04\", \"product_id\": \"P11\"}, \"result\": {\"start\": \"2026-05-01\", \"end\": \"2026-08-31\", \"store_id\": \"S04\", \"pr…",
+              "reason": "全部 result 里一共 76 个数字，超过 60（穷举数字不是证据）"
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C08",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 11.937,
+      "turns": [
+        {
+          "question": "员工迟到多久算一次？",
+          "passed": true,
+          "latency_seconds": 11.937,
+          "answer_type": "doc",
+          "citations": [
+            "KB-016"
+          ],
+          "trace_id": "t-20260901-0012",
+          "answer": "按现行《排班与考勤制度》的口径（生效日期 2025-11-01）：\n\n- **迟到 15 分钟以上，记 1 次**；\n- 15 分钟以内算**轻微迟到**，不单独记次，但**当月累计 3 次轻微迟到折算为 1 次**；\n- 当月迟到 3 次以上，由店长约谈并记入当月门店考勤小结；店长本人迟到由运营部约谈；\n- 早退、脱岗比照迟到处理 。\n\n另外配套的两条也顺带说明：上下班需在排班系统打卡，忘记打卡当天补卡并说明原因，每月补卡不超过 2 次；换班要提前 24 小时在系统提交并经营店长批准 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

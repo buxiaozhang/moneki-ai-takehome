@@ -1,0 +1,608 @@
+{
+  "generated_at": "2026-09-27 14:32:43",
+  "base_url": "http://localhost:8000",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\public_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": "hybrid",
+  "total": {
+    "points": 18.0,
+    "earned": 6.0,
+    "ratio": 0.3333,
+    "questions": 6,
+    "passed": 2
+  },
+  "per_category": {
+    "hybrid": {
+      "points": 18.0,
+      "earned": 6.0,
+      "questions": 6,
+      "passed": 2,
+      "ratio": 0.3333
+    }
+  },
+  "latency_seconds": {
+    "median": 14.235,
+    "max": 19.079,
+    "total": 82.017
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "live",
+    "llm": {
+      "mode": "live",
+      "missing": [],
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "api_key_set": true,
+      "dotenv": "D:\\评测作业\\moneki-ai-takehome\\.env",
+      "hint": "已配置，问答会调用真实模型。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "H01",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 19.079,
+      "turns": [
+        {
+          "question": "S03 六月第二周（6 月 8 日到 6 月 14 日）的营业额为什么比别的周低这么多？",
+          "passed": false,
+          "latency_seconds": 19.079,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-020",
+            "KB-051"
+          ],
+          "trace_id": "t-20260901-0013",
+          "answer": "## 结论：不是经营变差，是 S03 整店停业了 4 天\n\n**原因**：浦东新区市场监管所在 2026-06-05 到 S03（Juicy Bao Bao，上海·浦东）检查，指出后厨排烟管道油垢堆积、风管接口密封不严，要求限期整改；整改需要停火并拆装风管，无法在营业时间穿插完成。因此总部运营部决定 **S03 自 6 月 8 日至 6 月 11 日停业 4 天，堂食、外卖、预订全部暂停，6 月 12 日恢复正常营业** 。\n\n**数据印证**：\n- S03 在 6 月 8 日、9 日、10 日、11 日四天净营业额均为 0，订单数 0；6 月 12 日恢复当天就有 998 元 / 27 单 [工具查询：daily_metrics]。\n- 全店合计口径下这四天其他门店正常营业：全部门店当日净营业额分别为 3867、3652、3246、3897 元 [工具查询：daily_metrics]，说明是 S03 单店停业，不是大盘问题。\n- 该周 S03 净营业额 3630 元、订单 102 单、客单价 35.59 元 [工具查询：by_store]，全周只有 3 个营业日。\n\n**与相邻周对比**（同为 S03）：\n- 6/1–6/7：净营业额 6117 元、199 单\n- 6/8–6/14：净营业额 3630 元、102 单，**少 2487 元**\n- 6/15–6/21：净营业额 6306 元、200 单\n[工具查询：compare_periods]\n\n**补充**：停业周拉低的主要是“营业天数”，不是单店经营力下降——恢复营业的三天客单价 35.59 元，反而高于 6/1–6/7 的 30.74 元和 6/15–6/21 的 31.53 元 [工具查询：compare_periods]。S03 店长周报也记述 12 日开门时已有老顾客等候、13–14 日周末客流略好于停业前 。顾客问询时门店按口径解释为排烟管道整改，未涉及食品安全问题 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": false,
+              "expected": "不超过 20 个不同的数字",
+              "actual": 27,
+              "reason": "回答里出现了 27 个不同的数字；穷举一堆数字不是回答"
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": false,
+              "expected": "result 不超过 4096 字节、数字不超过 60 个、sql 是单条 SELECT",
+              "actual": "[{\"tool\": \"daily_metrics\", \"params\": {\"start\": \"2026-06-01\", \"end\": \"2026-06-30\", \"store_id\": \"S03\"}, \"result\": {\"days\": [{\"date\": \"2026-06-01\", \"net_revenue\": 675.0, \"orders\": 25, \"aov\": 27.0}, {\"dat…",
+              "reason": "全部 result 里一共 180 个数字，超过 60（穷举数字不是证据）"
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_any",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_any",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H02",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 3.0,
+      "passed": true,
+      "latency_seconds": 13.922,
+      "turns": [
+        {
+          "question": "618 当天 S02 的牛肉poke 卖了多少份？达到目标了吗？",
+          "passed": true,
+          "latency_seconds": 13.922,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-023"
+          ],
+          "trace_id": "t-20260901-0014",
+          "answer": "2026-06-18（S02 Makai Poke）（牛肉poke）：销量 125 件，净营业额 3625.00 元，有效订单数 53 单，客单价 68.40 元，退款金额 0.00 元。目标为 120 份（KB-023《2026 年 618 活动方案》（2026-06-18 起生效）），实际 125 份，已达标，超出 5 份。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "numbers_none",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "text_any",
+              "passed": true
+            },
+            {
+              "name": "text_none",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "cite_none",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H03",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 16.203,
+      "turns": [
+        {
+          "question": "冷萃乌龙茶上市第一个月的销量达标了吗？",
+          "passed": false,
+          "latency_seconds": 16.203,
+          "answer_type": "refusal",
+          "citations": [],
+          "trace_id": "t-20260901-0015",
+          "answer": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "hybrid"
+              ],
+              "actual": "refusal",
+              "reason": "answer_type 应是 hybrid 之一"
+            },
+            {
+              "name": "numbers_all",
+              "passed": false,
+              "expected": [
+                689
+              ],
+              "actual": [],
+              "reason": "回答里没有出现 689"
+            },
+            {
+              "name": "fact_all",
+              "passed": false,
+              "expected": {
+                "docs": [
+                  "KB-028"
+                ],
+                "all_of": [
+                  "900"
+                ]
+              },
+              "actual": {
+                "answer": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+                "quoted": []
+              },
+              "reason": "回答里没提到，KB-028 的 quote 里也没有：900"
+            },
+            {
+              "name": "text_any",
+              "passed": false,
+              "expected": [
+                "未达",
+                "没达",
+                "没有达",
+                "未能",
+                "没能",
+                "差",
+                "缺口"
+              ],
+              "actual": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+              "reason": "回答里一个期望说法都没有"
+            },
+            {
+              "name": "text_none",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": false,
+              "expected": [
+                "KB-028"
+              ],
+              "actual": [],
+              "reason": "没有引用 KB-028"
+            },
+            {
+              "name": "evidence_required",
+              "passed": false,
+              "expected": "非空的 data_evidence",
+              "actual": [],
+              "reason": "回答里的数字没有给出对应的数据库查询"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H04",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 6.297,
+      "turns": [
+        {
+          "question": "牛肉poke 现在卖多少钱一份？商品表里那个价能直接拿来用吗？",
+          "passed": false,
+          "latency_seconds": 6.297,
+          "answer_type": "refusal",
+          "citations": [],
+          "trace_id": "t-20260901-0016",
+          "answer": "抱歉，我暂时无法回答。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "hybrid",
+                "doc"
+              ],
+              "actual": "refusal",
+              "reason": "answer_type 应是 hybrid/doc 之一"
+            },
+            {
+              "name": "fact_all",
+              "passed": false,
+              "expected": {
+                "docs": [
+                  "KB-025"
+                ],
+                "all_of": [
+                  "45"
+                ]
+              },
+              "actual": {
+                "answer": "抱歉，我暂时无法回答。",
+                "quoted": []
+              },
+              "reason": "回答里没提到，KB-025 的 quote 里也没有：45"
+            },
+            {
+              "name": "fact_any",
+              "passed": false,
+              "expected": {
+                "docs": [
+                  "KB-025"
+                ],
+                "any_of": [
+                  "建档价",
+                  "维表",
+                  "滞后"
+                ]
+              },
+              "actual": {
+                "answer": "抱歉，我暂时无法回答。",
+                "quoted": []
+              },
+              "reason": "回答里没提到，KB-025 的 quote 里也没有：建档价、维表、滞后"
+            },
+            {
+              "name": "cite_all",
+              "passed": false,
+              "expected": [
+                "KB-025"
+              ],
+              "actual": [],
+              "reason": "没有引用 KB-025"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H05",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 3.0,
+      "passed": true,
+      "latency_seconds": 11.969,
+      "turns": [
+        {
+          "question": "8 月 3 日 S05 的现金支付占比是多少？为什么会这样？",
+          "passed": true,
+          "latency_seconds": 11.969,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-027"
+          ],
+          "trace_id": "t-20260901-0017",
+          "answer": "2026-08-03（S05 Super Tetsudo） 共 27 单，其中现金 27 单、占订单数的 100.00%、金额 973.00 元。原因见 KB-027《S05 Super Tetsudo POS 终端故障报告》（2026-08-03 起生效）：故障是开店前例行检查收银设备时发现的，当时离 11:00 开门还有二十分钟。10:45 上报商场物业和总部 IT 部，11:00 前后确认原因：**商场当天进行网络交换机升级**，商户专线在切换过程中中断，同层受影响的商户不止我们一家。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_any",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "H06",
+      "category": "hybrid",
+      "points": 3.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 14.547,
+      "turns": [
+        {
+          "question": "S02 在 8 月 17 日到 19 日为什么一分钱营业额都没有？",
+          "passed": false,
+          "latency_seconds": 14.547,
+          "answer_type": "refusal",
+          "citations": [],
+          "trace_id": "t-20260901-0018",
+          "answer": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": false,
+              "expected": [
+                0.0
+              ],
+              "actual": [],
+              "reason": "回答里没有出现 0"
+            },
+            {
+              "name": "text_any",
+              "passed": false,
+              "expected": [
+                "没有找到",
+                "未找到",
+                "没有查到",
+                "未查到",
+                "找不到",
+                "没有说明",
+                "没有记录",
+                "未说明",
+                "无法确定",
+                "没有相关",
+                "查不到",
+                "不清楚",
+                "没有任何",
+                "无法解释",
+                "不知道"
+              ],
+              "actual": "模型服务这次没有正常返回（工具调用没有收敛），为了不给出没有依据的数字，这个问题先不回答。可以稍后重试；失败的真实原因记在 trace 里。",
+              "reason": "回答里一个期望说法都没有"
+            },
+            {
+              "name": "cite_max",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": false,
+              "expected": "非空的 data_evidence",
+              "actual": [],
+              "reason": "回答里的数字没有给出对应的数据库查询"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

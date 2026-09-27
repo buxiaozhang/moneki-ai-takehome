@@ -72,10 +72,23 @@ class DataTools:
         return int(self.conn.execute("SELECT COUNT(*) FROM sales_clean").fetchone()[0])
 
     def run_sql(self, sql: str) -> dict:
-        """执行一条 SQL。工具覆盖不到的查法，让模型自己写。"""
-        cursor = self.conn.execute(sql)
-        rows = [dict(row) for row in cursor.fetchall()] if cursor.description else []
-        self.conn.commit()
+        """执行一条 SQL。工具覆盖不到的查法，让模型自己写。
+
+        SQL 写错（表名不存在、语法错）**不能往外抛**：一抛就会把整轮问答打断，
+        最后只剩一句兜底拒答，而且调试面板上还看不出发生过什么。
+        返回结构化错误，模型下一轮还能自己改一版再试。
+        """
+        try:
+            cursor = self.conn.execute(sql)
+            rows = [dict(row) for row in cursor.fetchall()] if cursor.description else []
+            self.conn.commit()
+        except sqlite3.Error as exc:
+            return {
+                "sql": sql,
+                "error": "%s: %s" % (type(exc).__name__, exc),
+                "rows": [],
+                "row_count": 0,
+            }
         return {"sql": sql, "rows": rows[:50], "row_count": len(rows)}
 
     def stores(self) -> list[dict]:

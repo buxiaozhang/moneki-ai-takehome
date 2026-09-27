@@ -183,10 +183,15 @@ class Service:
                 },
             )
             return answer
-        except Exception:  # noqa: BLE001 - 不管里面出什么事，接口都得给个像样的回答
+        except Exception as exc:  # noqa: BLE001 - 不管里面出什么事，接口都得给个像样的回答
+            # 一定要留痕。之前这里把异常直接吞了，调试面板上只看得到一句
+            # 「抱歉，我暂时无法回答。」，既没有错误记录也没有出错步骤，
+            # 完全无从下手 —— 恰恰是第四关要解决的那种情况。
+            trace.error("answer", exc)
             return Answer(
                 answer="抱歉，我暂时无法回答。",
                 answer_type="refusal",
+                notes=["内部错误：%s" % exc],
             )
 
     def _run_engine(self, plan, trace: Trace, history: list[dict]) -> Answer:

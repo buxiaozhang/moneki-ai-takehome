@@ -1,0 +1,320 @@
+{
+  "generated_at": "2026-09-27 14:29:30",
+  "base_url": "http://localhost:8000",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\public_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": "version",
+  "total": {
+    "points": 6.0,
+    "earned": 6.0,
+    "ratio": 1.0,
+    "questions": 3,
+    "passed": 3
+  },
+  "per_category": {
+    "version": {
+      "points": 6.0,
+      "earned": 6.0,
+      "questions": 3,
+      "passed": 3,
+      "ratio": 1.0
+    }
+  },
+  "latency_seconds": {
+    "median": 9.375,
+    "max": 18.36,
+    "total": 35.017
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "live",
+    "llm": {
+      "mode": "live",
+      "missing": [],
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "api_key_set": true,
+      "dotenv": "D:\\评测作业\\moneki-ai-takehome\\.env",
+      "hint": "已配置，问答会调用真实模型。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "V01",
+      "category": "version",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 9.375,
+      "turns": [
+        {
+          "question": "今年 618 做活动的是哪个商品，活动价多少？",
+          "passed": true,
+          "latency_seconds": 9.375,
+          "answer_type": "doc",
+          "citations": [
+            "KB-023"
+          ],
+          "trace_id": "t-20260901-0001",
+          "answer": "今年（2026 年）618 的活动商品是 **牛肉 poke**，活动价 **¥29**。\n\n具体安排 ：\n- 时间：2026 年 6 月 18 日当天，营业时间内有效，不延长、不顺延\n- 范围：仅限 Makai Poke（S02，上海·静安）一家门店，其余四家门店不参与\n- 规则：每单限购 3 份，超出部分按日常售价结算；仅限堂食与自提，第三方外卖平台不参与\n\n需要说明的是，这里的活动价是方案里规定的价格；如果要做报表里的成交金额，还是要以数据库按现行口径算出的实收为准。需要我拉一下 6 月 18 日 S02 牛肉 poke 的实际销量和实收单价吗？",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_none",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "fact_any",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "cite_none",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "V02",
+      "category": "version",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 7.282,
+      "turns": [
+        {
+          "question": "会员现在单笔充值满 500 送多少？",
+          "passed": true,
+          "latency_seconds": 7.282,
+          "answer_type": "doc",
+          "citations": [
+            "KB-011"
+          ],
+          "trace_id": "t-20260901-0002",
+          "answer": "单笔充值满 500 元，赠送 60 元；满 1000 元赠送 150 元，档位不叠加、按单笔金额就高不就低，500 元以下不赠送。赠送金额即时到账，只能用于消费，不可提现、不可开票 。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_none",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "V03",
+      "category": "version",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 18.36,
+      "turns": [
+        {
+          "question": "储值充值现在的赠送规则是什么？",
+          "passed": true,
+          "latency_seconds": 8.468,
+          "answer_type": "doc",
+          "citations": [
+            "KB-011"
+          ],
+          "trace_id": "t-20260901-0003",
+          "answer": "当前执行的是《会员储值政策 v2》（生效日期 2026-07-01），赠送规则如下 ：\n\n- 单笔充值满 **500 元**，赠送 **60 元**；\n- 单笔充值满 **1000 元**，赠送 **150 元**；\n- 赠送档位**不叠加**，按单笔充值金额\"就高不就低\"；单笔 500 元以下的充值不赠送。\n\n补充几点适用说明 ：\n\n- 赠送金额**即时到账**，与本金放在同一个余额里，只能用于消费，**不可提现、不可开票**；\n- 储值卡为小程序电子卡，五家门店通用，堂食、自提、外卖自营渠道均可使用；\n- **第三方外卖平台的订单不支持储值支付**；\n- 2026-07-01 之前充值的余额，按原余额继续使用。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        },
+        {
+          "question": "那 6 月的时候呢？",
+          "passed": true,
+          "latency_seconds": 9.892,
+          "answer_type": "doc",
+          "citations": [
+            "KB-010",
+            "KB-011"
+          ],
+          "trace_id": "t-20260901-0004",
+          "answer": "6 月执行的是当时的版本（生效日期 2026-01-01，至 2026-07-01 被现行版本取代）：\n\n- 单笔充值满 **500 元**，赠送 **50 元**；\n- 单笔 500 元以下的充值不赠送；\n- 只有这一个档位，没有 1000 元档；\n- 赠送金额即时到账，与本金放在同一个余额里，不单独计息、不单独统计；\n- 赠送金额只能用于消费，不可提现、不可开票；\n- 充值在小程序或门店收银台均可办理，门店办理时由店员核对会员手机号后四位。\n\n和现行版本的差别主要在赠送力度：6 月是满 500 赠 50（且无更高档位），现行版本是满 500 赠 60、满 1000 赠 150 。另外适用范围（五店通用、第三方外卖平台不支持储值支付）两版一致。\n\n需要说明的是，这是**规则**层面的回答；如果运营同事想看 6 月实际充值/赠送的执行数据，那需要另行查询，当前口径里没有\"储值赠送金额\"这个指标。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "fact_all",
+              "passed": true
+            },
+            {
+              "name": "cite_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

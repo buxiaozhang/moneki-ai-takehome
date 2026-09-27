@@ -1,0 +1,443 @@
+{
+  "generated_at": "2026-09-27 14:22:37",
+  "base_url": "http://localhost:8000",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\public_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": "data",
+  "total": {
+    "points": 12.0,
+    "earned": 10.0,
+    "ratio": 0.8333,
+    "questions": 6,
+    "passed": 5
+  },
+  "per_category": {
+    "data": {
+      "points": 12.0,
+      "earned": 10.0,
+      "questions": 6,
+      "passed": 5,
+      "ratio": 0.8333
+    }
+  },
+  "latency_seconds": {
+    "median": 7.992,
+    "max": 11.171,
+    "total": 50.063
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "live",
+    "llm": {
+      "mode": "live",
+      "missing": [],
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "api_key_set": true,
+      "dotenv": null,
+      "hint": "已配置，问答会调用真实模型。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "D01",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 7.157,
+      "turns": [
+        {
+          "question": "7 月整体的净营业额是多少？",
+          "passed": true,
+          "latency_seconds": 7.157,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0044",
+          "answer": "2026 年 7 月（全部门店）：净营业额 162414.00 元，有效订单数 4446 单，客单价 36.53 元，销量 6789 件，退款金额 494.00 元。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D02",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 9.172,
+      "turns": [
+        {
+          "question": "五月到八月这四个月，哪个品类的门店净营业额最高？多少钱？",
+          "passed": true,
+          "latency_seconds": 9.172,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0045",
+          "answer": "2026-05-01 至 2026-08-31（全部门店） 净营业额最高的门店品类是轻食，166010.00 元；各品类依次为：轻食（S02）166010.00 元，日料（S05）126301.00 元，拉面（S01）123158.00 元，三明治（S04）118068.00 元，点心（S03）113392.00 元。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "text_any",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D03",
+      "category": "data",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 11.171,
+      "turns": [
+        {
+          "question": "牛肉poke 六月一共卖了多少钱？",
+          "passed": false,
+          "latency_seconds": 11.171,
+          "answer_type": "refusal",
+          "citations": [],
+          "trace_id": "t-20260901-0046",
+          "answer": "抱歉，我暂时无法回答。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "data",
+                "hybrid"
+              ],
+              "actual": "refusal",
+              "reason": "answer_type 应是 data/hybrid 之一"
+            },
+            {
+              "name": "numbers_all",
+              "passed": false,
+              "expected": [
+                21265.0
+              ],
+              "actual": [],
+              "reason": "回答里没有出现 21265"
+            },
+            {
+              "name": "evidence_required",
+              "passed": false,
+              "expected": "非空的 data_evidence",
+              "actual": [],
+              "reason": "回答里的数字没有给出对应的数据库查询"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D04",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 6.75,
+      "turns": [
+        {
+          "question": "7 月的客单价跟 6 月比，是涨了还是跌了？",
+          "passed": true,
+          "latency_seconds": 6.75,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0047",
+          "answer": "2026 年 7 月（全部门店）的客单价为 36.53 元，2026 年 6 月（全部门店）为 36.36 元，涨了 0.17 元（+0.47%）。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "signed_delta",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D05",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 6.985,
+      "turns": [
+        {
+          "question": "8 月一共退了多少钱？",
+          "passed": true,
+          "latency_seconds": 6.985,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0048",
+          "answer": "8 月（2026-08-01 至 2026-08-31）全部门店合计退款金额为 **598.00 元**。\n\n同期参考：净营业额 160,345.00 元，有效订单 4,560 单，客单价 35.16 元，销量 6,944 份。\n\n如果需要按门店或商品拆分退款，可以再告诉我。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D06",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 8.828,
+      "turns": [
+        {
+          "question": "味噌拉面 7 月卖了多少碗？",
+          "passed": true,
+          "latency_seconds": 8.828,
+          "answer_type": "hybrid",
+          "citations": [
+            "KB-003"
+          ],
+          "trace_id": "t-20260901-0049",
+          "answer": "味噌拉面（数据库里写作“味增拉面”，商品编号 P02）2026 年 7 月全部门店合计销量为 **373 碗**，对应净营业额 11,190.00 元，有效订单 264 单 。\n\n需要看分门店或按天的明细可以再说。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -46,8 +46,6 @@
 | `LLM_BASE_URL` | 模型服务地址，例如 `https://api.deepseek.com` | 空 | 是（缺了走降级模式） |
 | `LLM_API_KEY` | 模型 Key | 空 | 是（缺了走降级模式） |
 | `LLM_MODEL` | 模型名，例如 `deepseek-flash` | 空 | 是（缺了走降级模式） |
-| `LLM_TIMEOUT` | 单次模型调用超时（秒） | `120` | 否 |
-| `CHAT_BUDGET` | `/api/chat` 整体预算（秒） | `150` | 否 |
 
 其余与模型无关的配置：`DATA_DIR`、`KB_DIR`、`VAR_DIR`、`TODAY`（默认 `2026-09-01`）。
 
@@ -226,7 +224,7 @@ curl -s http://localhost:8000/api/trace/<trace_id> | python -m json.tool
 因此公开题库在**完全没有 Key** 的情况下也能拿到与配置了 Key 时相同的分数 ——
 这也是能把 `EVAL_REPORT.md` 的最终成绩写成无 Key 成绩的原因。
 
-`starter/.env.example` 里有三个变量的占位符样例，可以直接复制成 `.env`。
+`.env.example` 里有三个变量的占位符样例，可以直接复制成 `.env`。
 仓库里**没有任何真实 Key**（`git log --all -S` 已核对过历史）。
 
 ---

@@ -86,3 +86,34 @@ def test_chat_trace_id(client):
 
 def test_trace_unknown(client):
     assert client.get("/api/trace/nope").status_code == 404
+
+
+def test_internal_failure_is_recorded_in_trace(monkeypatch):
+    """内部异常必须留痕，不能只给一句「抱歉，我暂时无法回答。」
+
+    以前 `_answer` 里那个兜底 except 直接把异常吞了 ——
+    """
+    from kbqa import service as service_module
+    from kbqa.config import load_settings
+    from kbqa.trace import Trace
+
+    def boom(self, plan, trace, history):
+        raise RuntimeError("故意炸一个，验证会留痕")
+
+    monkeypatch.setattr(service_module.Service, "_run_engine", boom)
+    svc = service_module.Service(load_settings())
+    trace = Trace(trace_id="t-internal-error", question="内部错误留痕", session_id="sess")
+    answer = svc.answer_with_trace(trace, "sess", "6 月营业额")
+
+    # 接口照样给得出回答（契约：/api/chat 不返回 500）
+    assert answer.answer.strip()
+    assert answer.answer_type == "refusal"
+
+    # 但真实原因必须落在 trace 里
+    saved = svc.get_trace(trace.trace_id)
+    assert saved, "trace 应该已经存下来"
+    errors = saved.get("errors") or []
+    assert errors, "内部异常没有记进 trace.errors，调试面板上会看不到任何原因"
+    assert any("故意炸一个" in (item.get("message") or "") for item in errors), (
+        "trace 里应该带上原始异常信息，实际：%s" % errors
+    )
