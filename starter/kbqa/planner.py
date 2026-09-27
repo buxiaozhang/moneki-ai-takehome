@@ -256,12 +256,16 @@ class Planner:
         # 上面第 210 行的 may_query 已经算过“句子里有没有数据库能算的东西”，
         # 只有它成立时才允许把已经判成 doc 的结果改写成 data，
         # 否则上面第 231-232 行的判断会被这一句无条件推翻。
-        if E.has_any(text, ("多少", "多久", "几")):
+        #
+        # 另外，第 217-223 行已经判成 **hybrid** 的三种问法
+        # （target 问目标、price 问价格、anomaly 问原因）不能被这里推翻：
+        # 一旦改写就会退化成纯取数，把知识库那一半证据丢掉。
+        if plan.intent != "hybrid" and E.has_any(text, ("多少", "多久", "几")):
             if plan.intent != "doc" or may_query:
                 plan.intent = "data"
                 if plan.kind in ("doc", "anomaly", "target", "price"):
                     plan.kind = "summary"
-        elif E.has_any(text, ("为什么", "原因", "怎么回事", "咋回事")):
+        elif plan.intent != "hybrid" and E.has_any(text, ("为什么", "原因", "怎么回事", "咋回事")):
             plan.intent, plan.kind = "doc", "doc"
 
         plan.slots["asks_why"] = bool(asks_why or abnormal)
