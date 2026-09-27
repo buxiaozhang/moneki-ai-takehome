@@ -1,4 +1,4 @@
-﻿"""看板页面与调试接口。
+"""看板页面与调试接口。
 - `GET  /`                    看板页面（对话 / 索引 / 指标 / 数据质量）
 - `POST /api/chat/stream`     流式问答（SSE），边做边推
 - `GET  /api/traces`          最近若干次问答
@@ -11,14 +11,18 @@
 """
 
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Body, FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import insights
+from .insights import DEFAULT_DROP_RATIO, DEFAULT_Z
+
 # 从 server.py 顶层导入：注解在运行时必须能被解析成真实类型（见上面那段说明）。
 # server.py 在末尾才 import 本模块，所以这里能安全拿到这些名字。
-from .server import ChatRequest, _as_text, service
+from .server import ChatRequest, _as_text, _bad_date, service
 from .streaming import stream_chat
 
 #: 前端静态文件目录。用 __file__ 定位，不依赖启动时的工作目录。
@@ -33,6 +37,7 @@ def install(app: FastAPI) -> None:
     """
     _mount_pages(app)
     _register_stream(app)
+    _register_dashboard(app)
     _register_debug(app)
 
 
@@ -76,6 +81,64 @@ def _register_stream(app: FastAPI) -> None:
     def traces(limit: int = 50) -> dict:
         """最近的若干次问答，只给列表要用的摘要。"""
         return {"traces": service().traces.recent(limit)}
+
+
+# -- 看板 ----------------------------------------------------------------------
+
+
+def _register_dashboard(app: FastAPI) -> None:
+    """看板主接口：一次把首屏要的东西全给出去。
+
+    分成 4 个请求也能做，但首屏会看到 4 次"加载中"，而且筛选条件要重复传 4 遍。
+    这里让服务端一次算完 —— 查询本身就是几条 SQL，聚合的代价可以忽略。
+    """
+
+    @app.get("/api/ui/dashboard", tags=["ui"])
+    def dashboard(
+        start: str = Query(...),
+        end: str = Query(...),
+        store_id: Optional[str] = None,
+        product_id: Optional[str] = None,
+        top_limit: int = Query(default=10, ge=1, le=50),
+        z: float = Query(default=DEFAULT_Z, gt=0),
+        drop_ratio: float = Query(default=DEFAULT_DROP_RATIO, gt=0, le=1),
+    ):
+        bad = _bad_date(start, end)
+        if bad:
+            return bad
+        current = service()
+        summary = current.tools.query_metrics(start, end, store_id, product_id)
+        daily = current.tools.daily_metrics(start, end, store_id, product_id)
+        top = current.tools.top_products(start, end, store_id, top_limit)
+        quality = current.tools.cleaning_report()
+        flagged = insights.as_payload(daily["days"], summary, z=z, drop_ratio=drop_ratio)
+
+        # 逐日序列横向再按门店拆一份，图表联动的"下钻"用得上。
+        by_store = []
+        if not store_id:
+            for item in current.tools.by_store(start, end, product_id).get("stores", []):
+                by_store.append(item)
+
+        # 支付方式构成：饼图用。
+        payment = current.tools.payment_mix(start, end, store_id)
+
+        return {
+            "start": start,
+            "end": end,
+            "store_id": store_id,
+            "product_id": product_id,
+            "summary": summary,
+            "days": flagged["days"],
+            "anomalies": flagged["anomalies"],
+            "anomaly_counts": flagged["counts"],
+            "period_warnings": flagged["period_warnings"],
+            "anomaly_params": flagged["params"],
+            "top_products": top["products"],
+            "by_store": by_store,
+            "payments": payment.get("payments", {}),
+            "data_quality": quality,
+            "data_period": current.data_period,
+        }
 
 
 # -- 调试接口 ------------------------------------------------------------------

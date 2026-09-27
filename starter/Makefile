@@ -5,7 +5,7 @@ PY ?= .venv/bin/python
 PORT ?= 8000
 export DATA_DIR KB_DIR VAR_DIR LLM_BASE_URL LLM_API_KEY LLM_MODEL
 
-.PHONY: setup rebuild run test clean
+.PHONY: setup rebuild run test test-web clean
 
 setup:          ## 建虚拟环境并装依赖
 	uv venv --python 3.12
@@ -19,6 +19,9 @@ run:            ## 启动服务，默认 8000 端口
 
 test:           ## 跑测试
 	$(PY) -m pytest tests -q
+
+test-web:       ## 跑前端 DOM 冒烟测试（需要 node 与 jsdom，缺了会自动跳过）
+	node tests/web_smoke.js
 
 clean:          ## 删掉清洗表
 	rm -rf var

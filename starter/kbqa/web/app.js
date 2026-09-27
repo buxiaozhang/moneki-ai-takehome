@@ -15,6 +15,10 @@ const state = {
   catalog: null,
   streaming: false,
   currentSource: null, // 当前 SSE 连接，切换会话时用来收尾
+  dash: null,          // 最近一次看板数据
+  charts: [],          // 当前活着的图表句柄，切换筛选前要销毁
+  drillStore: null,    // 图表联动选中的门店
+  drillDate: null,     // 选中的日期
 };
 
 /* ---------- 工具 ---------- */
@@ -85,24 +89,61 @@ async function loadHealth() {
 async function loadCatalog() {
   const catalog = await getJSON('/api/debug/catalog');
   state.catalog = catalog;
-  const stores = $('m-store');
   catalog.stores.forEach((store) => {
     const option = document.createElement('option');
     option.value = store.store_id;
     option.textContent = `${store.store_id} ${store.store_name}`;
-    stores.appendChild(option);
+    $('d-store').appendChild(option);
   });
-  const products = $('m-product');
   catalog.products.forEach((product) => {
     const option = document.createElement('option');
     option.value = product.product_id;
     option.textContent = `${product.product_id} ${product.product_name}`;
-    products.appendChild(option);
+    $('d-product').appendChild(option);
   });
   if (catalog.data_period && catalog.data_period.start) {
-    $('m-start').value = catalog.data_period.start;
-    $('m-end').value = catalog.data_period.end;
+    $('d-start').value = catalog.data_period.start;
+    $('d-end').value = catalog.data_period.end;
+    buildQuickRanges(catalog.data_period);
   }
+}
+
+/** 常用区间快捷键：整段 / 最近 7 天 / 按月。 */
+function buildQuickRanges(period) {
+  const box = $('dash-quick');
+  const ranges = [['全部', period.start, period.end]];
+  const end = new Date(period.end + 'T00:00:00');
+  const weekAgo = new Date(end);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  ranges.push(['最近 7 天', weekAgo.toISOString().slice(0, 10), period.end]);
+  // 数据里出现过的月份，各来一个。
+  const months = new Set();
+  const cursor = new Date(period.start + 'T00:00:00');
+  const last = new Date(period.end + 'T00:00:00');
+  while (cursor <= last) {
+    months.add(cursor.toISOString().slice(0, 7));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  Array.from(months).forEach((month) => {
+    const [year, mon] = month.split('-').map(Number);
+    const first = `${month}-01`;
+    const lastDay = new Date(year, mon, 0).getDate();
+    ranges.push([`${mon} 月`, first, `${month}-${String(lastDay).padStart(2, '0')}`]);
+  });
+
+  box.innerHTML = '';
+  ranges.forEach(([label, start, end2]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chip';
+    button.textContent = label;
+    button.addEventListener('click', () => {
+      $('d-start').value = start;
+      $('d-end').value = end2;
+      loadDashboard();
+    });
+    box.appendChild(button);
+  });
 }
 
 /* ---------- 对话 ---------- */
@@ -214,20 +255,12 @@ function stepBody(step) {
   }
   if (step.step === 'search') {
     const lines = [];
+    if (detail.query) lines.push(`检索词: ${detail.query}`);
     if (detail.coverage !== undefined) lines.push(`覆盖率: ${detail.coverage}`);
     if (detail.expansions && detail.expansions.length) {
       lines.push(`别名扩展: ${detail.expansions.slice(0, 6).join('、')}`);
     }
-    (detail.hits || []).forEach((hit, index) => {
-      const padded = hit.padded ? '（补位，不作答）' : '';
-      lines.push(`${index + 1}. ${hit.doc_id} ${hit.chunk_id} score=${hit.score}${padded}`);
-    });
-    if (detail.filtered && detail.filtered.length) {
-      lines.push(`— 被过滤 ${detail.filtered.length} 份：`);
-      detail.filtered.slice(0, 6).forEach((item) => {
-        lines.push(`   ${item.doc_id}: ${item.reason}`);
-      });
-    }
+    // 命中与过滤明细由 renderHits / renderFiltered 单独画，这里不重复。
     return lines.join('\n');
   }
   if (step.step === 'tool' || step.step === 'tool_arguments_invalid') {
@@ -240,19 +273,60 @@ function stepBody(step) {
   return Object.keys(detail).length ? JSON.stringify(detail, null, 2) : '';
 }
 
+/**
+ * 检索结果画成"分数条 + 是否采纳"，比一串 score= 数字好读得多。
+ * 补位片段（padded）不成作答依据，单独灰掉。
+ */
+function renderHits(detail) {
+  const hits = detail.hits || [];
+  if (!hits.length) return '';
+  const max = Math.max(...hits.map((hit) => Number(hit.score) || 0), 0.0001);
+  const rows = hits.map((hit, index) => {
+    const pct = Math.max(2, (Number(hit.score) || 0) / max * 100);
+    const cls = hit.padded ? 'hit padded' : 'hit';
+    return `<div class="${cls}">
+      <span class="hit-rank">${index + 1}</span>
+      <span class="hit-doc cite-link" data-doc="${esc(hit.doc_id)}">${esc(hit.doc_id)}</span>
+      <span class="hit-chunk">${esc(hit.chunk_id || '')}</span>
+      <span class="hit-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+      <span class="hit-score">${Number(hit.score).toFixed(3)}</span>
+      ${hit.padded ? '<span class="hit-flag">补位</span>' : ''}
+    </div>`;
+  }).join('');
+  return `<div class="hits">${rows}</div>`;
+}
+
+function renderFiltered(detail) {
+  const filtered = detail.filtered || [];
+  if (!filtered.length) return '';
+  return `<div class="filtered"><div class="filtered-head">被过滤 ${filtered.length} 份</div>` +
+    filtered.map((item) =>
+      `<div class="filtered-row"><span class="cite-link" data-doc="${esc(item.doc_id)}">${esc(item.doc_id)}</span>
+        <span class="filtered-reason">${esc(item.reason)}</span></div>`).join('') + '</div>';
+}
+
 function appendStep(step) {
   const box = $('trace');
   if (box.querySelector('.empty')) box.innerHTML = '';
+  state.traceSteps = state.traceSteps || [];
+  state.traceSteps.push(step);
+
   const node = document.createElement('div');
   node.className = 'step';
   node.dataset.step = step.step || '';
   const body = stepBody(step);
+  let extra = '';
+  if (step.step === 'search') extra = renderHits(step.detail || {}) + renderFiltered(step.detail || {});
   node.innerHTML = `
     <div class="step-head">
       <span class="step-name">${esc(stepTitle(step))}</span>
       <span class="step-ms">${fmtMs(step.took_ms)}</span>
     </div>
-    ${body ? `<div class="step-detail">${esc(body)}</div>` : ''}`;
+    ${body ? `<div class="step-detail">${esc(body)}</div>` : ''}
+    ${extra}`;
+  node.querySelectorAll('.cite-link').forEach((link) => {
+    link.addEventListener('click', () => openDoc(link.dataset.doc));
+  });
   box.appendChild(node);
   box.scrollTop = box.scrollHeight;
   return node;
@@ -300,6 +374,37 @@ function appendError(event) {
 function resetTrace(traceId) {
   $('trace').innerHTML = '<div class="empty">处理中…</div>';
   $('trace-id-label').textContent = traceId || '—';
+  $('trace-summary').hidden = true;
+  $('trace-summary').innerHTML = '';
+  state.traceSteps = [];
+}
+
+/**
+ * 顶部耗时条：把各步骤画成横向条形，一眼看出时间花在哪。
+ *
+ * `took_ms` 是各步骤自己的耗时，不是串行时间轴上的绝对位置 —— trace 里没有
+ * 记录步骤起止时刻，所以这里画的是"相对占比"而不是甘特图。标题也照实写，
+ * 免得看的人以为是严格的时间轴。
+ */
+function renderTraceSummary(steps, totalMs) {
+  const box = $('trace-summary');
+  const timed = (steps || []).filter((step) => Number(step.took_ms) > 0);
+  const sum = timed.reduce((acc, step) => acc + Number(step.took_ms), 0);
+  if (!timed.length) { box.hidden = true; return; }
+
+  const bars = timed.map((step) => {
+    const pct = sum ? (Number(step.took_ms) / sum) * 100 : 0;
+    return `<div class="gantt-row">
+      <span class="gantt-name">${esc(stepTitle(step))}</span>
+      <span class="gantt-track"><i class="gantt-bar" style="width:${pct.toFixed(1)}%"></i></span>
+      <span class="gantt-ms">${fmtMs(step.took_ms)}</span>
+    </div>`;
+  }).join('');
+
+  box.hidden = false;
+  box.innerHTML =
+    `<div class="gantt-head">耗时构成 <span class="muted">各步骤耗时之和 ${fmtMs(sum)}` +
+    (totalMs ? ` · 端到端 ${fmtMs(totalMs)}` : '') + `</span></div>` + bars;
 }
 
 /** 用留档重放一遍（历史点击）。 */
@@ -309,6 +414,7 @@ function renderTraceFromStore(trace) {
   (trace.llm_calls || []).forEach(appendLLM);
   (trace.errors || []).forEach((item) =>
     appendError({ where: item.where, error_type: item.type, message: item.message }));
+  renderTraceSummary(state.traceSteps, trace.total_ms);
   $('trace-id-label').textContent = `${trace.trace_id} · 共 ${fmtMs(trace.total_ms)}`;
 }
 
@@ -395,6 +501,7 @@ async function sendStreaming(sessionId, question, bubble) {
         $('trace-id-label').textContent = parsed.data.trace_id;
       } else if (parsed.event === 'final') {
         payload = parsed.data.payload;
+        renderTraceSummary(state.traceSteps, null);
       }
     }
   }
@@ -492,43 +599,275 @@ async function loadIndex() {
   $('index-meta').textContent += `（含告警跳过 ${expected - data.doc_count} 个文件）`;
 }
 
-/* ---------- 指标 ---------- */
+/* ---------- 经营看板 ---------- */
 
-async function loadMetrics(event) {
-  if (event) event.preventDefault();
+const SEVERITY_LABELS = { high: '高', warn: '注意', info: '提示' };
+const SEVERITY_ORDER = { high: 0, warn: 1, info: 2 };
+
+function destroyCharts() {
+  state.charts.forEach((chart) => chart.destroy());
+  state.charts = [];
+}
+
+function dashParams(extra) {
   const params = new URLSearchParams({
-    start: $('m-start').value,
-    end: $('m-end').value,
+    start: $('d-start').value,
+    end: $('d-end').value,
+    top_limit: $('d-top').value || '10',
   });
-  if ($('m-store').value) params.set('store_id', $('m-store').value);
-  if ($('m-product').value) params.set('product_id', $('m-product').value);
+  if ($('d-store').value) params.set('store_id', $('d-store').value);
+  if ($('d-product').value) params.set('product_id', $('d-product').value);
+  Object.entries(extra || {}).forEach(([key, value]) => params.set(key, value));
+  return params;
+}
 
-  const summary = await getJSON('/api/metrics/summary?' + params);
-  const cards = $('metric-cards');
+async function loadDashboard(event) {
+  if (event) event.preventDefault();
+  destroyCharts();
+  state.drillStore = null;
+  state.drillDate = null;
+
+  const data = await getJSON('/api/ui/dashboard?' + dashParams());
+  state.dash = data;
+
+  const scope = [
+    `$($('d-store').value || '全部门店')`,
+    `$($('d-product').value || '全部商品')`,
+    `${data.start} ~ ${data.end}`,
+  ].join(' · ');
+  $('dash-meta').textContent = scope;
+
+  renderCards(data);
+  renderAlerts(data);
+  renderTrend(data);
+  renderStoreCompare(data);
+  renderTopProducts(data);
+  renderQualityMini(data);
+  renderDailyTable(data);
+}
+
+function renderCards(data) {
+  const summary = data.summary || {};
+  const counts = data.anomaly_counts || {};
+  const flagged = (counts.high || 0) + (counts.warn || 0);
   const items = [
     ['净营业额', fmtNum(summary.net_revenue) + ' 元', 'ok'],
     ['退款金额', fmtNum(summary.refund_amount) + ' 元', summary.refund_amount > 0 ? 'warn' : ''],
-    ['有效订单数', String(summary.orders), ''],
-    ['客单价', summary.aov === null ? 'null' : fmtNum(summary.aov) + ' 元', ''],
-    ['销量', String(summary.qty), ''],
+    ['有效订单数', String(summary.orders ?? '—'), ''],
+    ['客单价', summary.aov === null || summary.aov === undefined ? 'null' : fmtNum(summary.aov) + ' 元', ''],
+    ['销量', String(summary.qty ?? '—'), ''],
+    ['异常日', flagged ? `${flagged} 天` : '无', flagged ? 'warn' : 'ok'],
   ];
-  cards.innerHTML = items.map(([label, value, cls]) =>
+  $('dash-cards').innerHTML = items.map(([label, value, cls]) =>
     `<div class="card ${cls}"><div class="label">${label}</div><div class="value">${esc(value)}</div></div>`
   ).join('');
+}
 
-  const daily = await getJSON('/api/metrics/daily?' + params);
-  const tbody = $('daily-table').querySelector('tbody');
+function renderAlerts(data) {
+  const box = $('dash-alerts');
+  const items = [];
+  (data.period_warnings || []).forEach((w) => items.push({ ...w, date: null }));
+  (data.anomalies || []).forEach((a) => items.push(a));
+
+  if (!items.length) {
+    box.innerHTML = `<div class="alert-box ok">未发现异常：所选区间内没有零营业额、显著低于均值或环比骤降的日子。</div>`;
+    return;
+  }
+
+  items.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9)
+    || String(a.date || '').localeCompare(String(b.date || '')));
+
+  const params = data.anomaly_params || {};
+  box.innerHTML =
+    `<div class="alert-head">异常预警 <span class="muted">规则：零营业额 · 连续 ${2} 天以上零营业额 · ` +
+    `低于均值 − ${params.z ?? 2}σ · 环比降幅 ≥ ${Math.round((params.drop_ratio ?? 0.5) * 100)}%</span></div>` +
+    `<div class="alert-list">` + items.map((item) => {
+      const date = item.date ? (item.end_date && item.end_date !== item.date
+        ? `${item.date} ~ ${item.end_date}` : item.date) : '';
+      return `<div class="alert alert-${esc(item.severity)}">
+        <span class="alert-tag">${esc(SEVERITY_LABELS[item.severity] || item.severity)}</span>
+        <span class="alert-label">${esc(item.label)}</span>
+        ${date ? `<button class="alert-date cite-link" data-date="${esc(item.date)}">${esc(date)}</button>` : ''}
+        <span class="alert-detail">${esc(item.detail)}</span>
+      </div>`;
+    }).join('') + '</div>';
+
+  box.querySelectorAll('.alert-date').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.drillDate = button.dataset.date;
+      renderTrend(state.dash);
+      highlightDaily(state.drillDate);
+    });
+  });
+}
+
+function renderTrend(data) {
+  const old = state.charts.find((chart) => chart.id === 'trend');
+  if (old) { old.destroy(); state.charts = state.charts.filter((c) => c !== old); }
+  const container = $('trend-chart');
+  container.innerHTML = '';
+  const chart = window.Charts.renderTrendChart(container, data.days, {
+    selectedDate: state.drillDate,
+    onSelect(day) {
+      state.drillDate = day ? day.date : null;
+      highlightDaily(state.drillDate);
+      const meta = $('daily-meta');
+      meta.textContent = day ? `已选中 ${day.date}` : '—';
+    },
+  });
+  chart.id = 'trend';
+  state.charts.push(chart);
+
+  const counts = data.anomaly_counts || {};
+  $('trend-title').textContent =
+    `营业额趋势（${data.days.length} 天${counts.high ? ` · ${counts.high} 天高优先级异常` : ''}）`;
+  $('trend-legend').innerHTML =
+    `<span class="lg"><i class="sw sw-bar"></i>净营业额</span>` +
+    `<span class="lg"><i class="sw sw-high"></i>高优先级异常</span>` +
+    `<span class="lg"><i class="sw sw-warn"></i>注意</span>` +
+    `<span class="lg"><i class="sw sw-zero"></i>零营业额</span>`;
+}
+
+function renderStoreCompare(data) {
+  const old = state.charts.find((chart) => chart.id === 'store');
+  if (old) { old.destroy(); state.charts = state.charts.filter((c) => c !== old); }
+  const container = $('store-chart');
+  container.innerHTML = '';
+
+  // 已经选了某家门店时，`by_store` 为空，改用该店的逐日数据画支付构成。
+  if (!data.by_store || !data.by_store.length) {
+    const rows = Object.entries(data.payments || {}).map(([label, info]) => ({
+      label, value: info.net_revenue, sub: `${info.orders} 单`,
+      extra: `订单占比 ${(info.share_orders * 100).toFixed(1)}%`,
+    }));
+    $('store-hint').textContent = '该门店的支付方式构成';
+    const chart = window.Charts.renderBarChart(container, rows, { valueLabel: '净营业额' });
+    chart.id = 'store';
+    state.charts.push(chart);
+    return;
+  }
+
+  $('store-hint').textContent = '点击某家门店下钻';
+  const items = data.by_store.map((store) => ({
+    id: store.store_id,
+    label: `${store.store_id} ${store.store_name}`,
+    sub: `${store.orders} 单 · 客单价 ${store.aov === null ? '—' : store.aov}`,
+    value: store.net_revenue,
+  }));
+  const chart = window.Charts.renderBarChart(container, items, {
+    valueLabel: '净营业额',
+    selectedId: state.drillStore,
+    onSelect(id) {
+      state.drillStore = id;
+      if (id) {
+        $('d-store').value = id;
+        loadDashboard();
+      }
+    },
+  });
+  chart.id = 'store';
+  state.charts.push(chart);
+}
+
+function renderTopProducts(data) {
+  const rows = data.top_products || [];
+  const total = Number((data.summary || {}).net_revenue) || 0;
+  const tbody = $('top-table').querySelector('tbody');
   tbody.innerHTML = '';
-  daily.days.forEach((day) => {
-    const row = document.createElement('tr');
-    if (!day.orders) row.className = 'dim';
-    row.innerHTML = `
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">没有数据</td></tr>';
+    return;
+  }
+  const max = Math.max(...rows.map((row) => Number(row.net_revenue) || 0), 1);
+  rows.forEach((row, index) => {
+    const share = total ? (Number(row.net_revenue) / total) * 100 : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="num">${index + 1}</td>
+      <td>${esc(row.product_name || row.product_id)}</td>
+      <td>${esc(row.product_category || '')}</td>
+      <td class="num">${fmtNum(row.net_revenue)}</td>
+      <td class="num">${row.qty}</td>
+      <td class="num">${row.orders}</td>
+      <td class="share-cell">
+        <span class="share-bar" style="width:${(Number(row.net_revenue) / max * 100).toFixed(1)}%"></span>
+        <span class="share-text">${share.toFixed(1)}%</span>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  $('top-title').textContent = `Top ${rows.length} 商品`;
+}
+
+function renderQualityMini(data) {
+  const report = data.data_quality || {};
+  const removed = report.removed || {};
+  const rows = Object.entries(removed);
+  const total = rows.reduce((sum, [, value]) => sum + (value || 0), 0);
+  const rawRows = report.raw_rows ?? 0;
+
+  let html = `<div class="quality-grid">` +
+    [['原始行数', rawRows], ['保留行数', report.kept_rows ?? '—'],
+     ['剔除合计', total], ['保留率', rawRows ? (report.kept_rows / rawRows * 100).toFixed(1) + '%' : '—']]
+      .map(([label, value]) =>
+        `<div class="mini"><div class="label">${label}</div><div class="value">${esc(value)}</div></div>`)
+      .join('') + '</div>';
+
+  html += '<div class="stack-bar">';
+  rows.forEach(([key, value]) => {
+    if (!value) return;
+    const pct = total ? (value / total) * 100 : 0;
+    html += `<span class="stack-seg" style="width:${pct.toFixed(2)}%" title="${esc(key)} ${value} 行"></span>`;
+  });
+  html += '</div><div class="stack-key">' + rows.filter(([, value]) => value).map(([key, value]) =>
+    `<span class="lg"><i class="sw sw-seg"></i>${esc(REMOVAL_LABELS[key] || key)} ${value}</span>`
+  ).join('') + '</div>';
+
+  if (!total) {
+    html += `<div class="warn-box">所有剔除计数都是 0 —— 清洗规则可能没有真正生效。</div>`;
+  }
+  $('dash-quality').innerHTML = html;
+}
+
+function renderDailyTable(data) {
+  const tbody = $('dash-daily-table').querySelector('tbody');
+  tbody.innerHTML = '';
+  const days = data.days || [];
+  if (!days.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">没有数据</td></tr>';
+    return;
+  }
+  days.forEach((day) => {
+    const tr = document.createElement('tr');
+    tr.dataset.date = day.date;
+    if (day.severity) tr.classList.add('row-' + day.severity);
+    if (!day.orders) tr.classList.add('dim');
+    const marks = (day.anomalies || []).map((a) =>
+      `<span class="mini-tag tag-${esc(a.severity)}" title="${esc(a.detail)}">${esc(a.label)}</span>`
+    ).join(' ');
+    tr.innerHTML = `
       <td>${esc(day.date)}</td>
       <td class="num">${fmtNum(day.net_revenue)}</td>
       <td class="num">${day.orders}</td>
-      <td class="num">${day.aov === null ? 'null' : fmtNum(day.aov)}</td>`;
-    tbody.appendChild(row);
+      <td class="num">${day.aov === null || day.aov === undefined ? 'null' : fmtNum(day.aov)}</td>
+      <td class="num">${fmtNum(day.refund_amount ?? 0)}</td>
+      <td>${marks || '<span class="muted">—</span>'}</td>`;
+    tr.addEventListener('click', () => {
+      state.drillDate = state.drillDate === day.date ? null : day.date;
+      renderTrend(data);
+      highlightDaily(state.drillDate);
+      $('daily-meta').textContent = state.drillDate ? `已选中 ${state.drillDate}` : '—';
+    });
+    tbody.appendChild(tr);
   });
+}
+
+function highlightDaily(date) {
+  const rows = $('dash-daily-table').querySelectorAll('tbody tr');
+  rows.forEach((row) => row.classList.toggle('row-selected', !!date && row.dataset.date === date));
+  if (date) {
+    const target = $('dash-daily-table').querySelector(`tbody tr[data-date="${date}"]`);
+    if (target) target.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 /* ---------- 数据质量 ---------- */
@@ -617,6 +956,11 @@ function switchView(name) {
     view.classList.toggle('active', view.id === 'view-' + name));
   if (name === 'index') loadIndex();
   if (name === 'quality') loadQuality();
+  // 看板切回来时重画一次：隐藏状态下容器宽度是 0，SVG 会按 0 宽画。
+  if (name === 'dash') {
+    if (!state.dash) loadDashboard();
+    else state.charts.forEach((chart) => chart.redraw());
+  }
 }
 
 function init() {
@@ -640,14 +984,14 @@ function init() {
     }
   });
 
-  $('metrics-form').addEventListener('submit', loadMetrics);
+  $('dash-form').addEventListener('submit', loadDashboard);
   $('drawer-close').addEventListener('click', () => { $('drawer').hidden = true; });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') $('drawer').hidden = true;
   });
 
   loadHealth();
-  loadCatalog().then(() => loadMetrics()).catch(() => {});
+  loadCatalog().then(() => loadDashboard()).catch(() => {});
   loadHistory();
   setInterval(loadHealth, 30000);
 }

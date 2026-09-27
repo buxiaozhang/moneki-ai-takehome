@@ -13,9 +13,9 @@
     <strong>经营看板 · 问答调试台</strong>
   </div>
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-view="chat">对话</button>
+    <button class="tab active" data-view="dash">经营看板</button>
+    <button class="tab" data-view="chat">对话</button>
     <button class="tab" data-view="index">知识库索引</button>
-    <button class="tab" data-view="metrics">指标</button>
     <button class="tab" data-view="quality">数据质量</button>
   </nav>
   <div class="status" id="status">加载中…</div>
@@ -24,8 +24,85 @@
 <div class="banner" id="llm-banner" hidden></div>
 
 <main>
+  <!-- 经营看板 -->
+  <section class="view active" id="view-dash">
+    <div class="panel">
+      <div class="panel-head">
+        <span>筛选</span>
+        <span class="muted" id="dash-meta">—</span>
+      </div>
+      <form class="filters" id="dash-form">
+        <label>开始 <input type="date" id="d-start" required></label>
+        <label>结束 <input type="date" id="d-end" required></label>
+        <label>门店 <select id="d-store"><option value="">全部门店</option></select></label>
+        <label>商品 <select id="d-product"><option value="">全部商品</option></select></label>
+        <label>Top <input type="number" id="d-top" value="10" min="1" max="50" style="width:4.5rem"></label>
+        <button type="submit">查询</button>
+        <span class="quick" id="dash-quick"></span>
+      </form>
+    </div>
+
+    <div class="cards" id="dash-cards"></div>
+
+    <div id="dash-alerts"></div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <span id="trend-title">营业额趋势</span>
+          <span class="muted">点柱子可切换联动</span>
+        </div>
+        <div class="chart" id="trend-chart"><div class="empty">加载中…</div></div>
+        <div class="legend" id="trend-legend"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span>门店对比</span>
+          <span class="muted" id="store-hint">点击某家门店下钻</span>
+        </div>
+        <div class="chart" id="store-chart"><div class="empty">加载中…</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <span id="top-title">Top 商品</span>
+          <span class="muted">按净营业额</span>
+        </div>
+        <div class="table-wrap">
+          <table id="top-table">
+            <thead>
+              <tr><th>#</th><th>商品</th><th>品类</th><th>净营业额</th><th>销量</th><th>订单</th><th>占比</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span>数据质量</span></div>
+        <div id="dash-quality"><div class="empty">加载中…</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span id="daily-title">逐日明细</span>
+        <span class="muted" id="daily-meta">—</span>
+      </div>
+      <div class="table-wrap tall">
+        <table id="dash-daily-table">
+          <thead>
+            <tr><th>日期</th><th>净营业额</th><th>订单数</th><th>客单价</th><th>退款</th><th>异常</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- 对话 -->
-  <section class="view active" id="view-chat">
+  <section class="view" id="view-chat">
     <div class="chat-col">
       <div class="panel chat-panel">
         <div class="panel-head">
@@ -56,6 +133,7 @@
           <span>实时追踪</span>
           <span class="muted" id="trace-id-label">—</span>
         </div>
+        <div class="trace-summary" id="trace-summary" hidden></div>
         <div class="trace" id="trace">
           <div class="empty">发送问题后，这里会实时显示规划、检索、工具调用、提示词与耗时。</div>
         </div>
@@ -89,27 +167,6 @@
     </div>
   </section>
 
-  <!-- 指标 -->
-  <section class="view" id="view-metrics">
-    <div class="panel">
-      <div class="panel-head"><span>指标查询</span></div>
-      <form class="filters" id="metrics-form">
-        <label>开始 <input type="date" id="m-start" required></label>
-        <label>结束 <input type="date" id="m-end" required></label>
-        <label>门店 <select id="m-store"><option value="">全部</option></select></label>
-        <label>商品 <select id="m-product"><option value="">全部</option></select></label>
-        <button type="submit">查询</button>
-      </form>
-      <div class="cards" id="metric-cards"></div>
-      <div class="table-wrap">
-        <table id="daily-table">
-          <thead><tr><th>日期</th><th>净营业额</th><th>订单数</th><th>客单价</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
   <!-- 数据质量 -->
   <section class="view" id="view-quality">
     <div class="panel">
@@ -128,6 +185,7 @@
   <div class="drawer-body" id="drawer-body"></div>
 </div>
 
+<script src="/static/charts.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
