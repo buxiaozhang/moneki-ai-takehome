@@ -237,7 +237,7 @@ def _month_and_day_windows(
     """处理“6 月”“6 月 18 日”“六月第二周”“618”这类零散写法。"""
     windows: list[tuple[str, str]] = []
     months = [
-        (match.start(), cn_number(match.group(1)))
+        (match.start(), cn_number(match.group(1)), match.group(0))
         for match in _MONTH.finditer(cleaned)
         if cn_number(match.group(1)) and 1 <= (cn_number(match.group(1)) or 0) <= 12
     ]
@@ -251,8 +251,8 @@ def _month_and_day_windows(
             _ = match
         return windows
 
-    for position, month in months:
-        next_month = next((p for p, _ in months if p > position), len(cleaned))
+    for position, month, month_text in months:
+        next_month = next((p for p, _, _ in months if p > position), len(cleaned))
         segment = cleaned[position:next_month]
         week = _WEEK.search(segment)
         if week:
@@ -260,18 +260,20 @@ def _month_and_day_windows(
             start = _clamp_day(year, month, (number - 1) * 7 + 1)
             end = _clamp_day(year, month, number * 7)
             windows.append((start.isoformat(), end.isoformat()))
-            spec.labels.append("%d月第%d周" % (month, number))
+            # label 用**原文**而不是拼出来的“6月第2周”：追问还原时要拿它把
+            # 上一轮的时间从句子里摘掉，字面对不上就摘不掉。
+            spec.labels.append(month_text + week.group(0))
             continue
         days = [cn_number(match.group(1)) for match in _DAY.finditer(segment)]
         days = [day for day in days if day and 1 <= day <= 31]
         if not days:
             windows.append(month_window(year, month))
-            spec.labels.append("%d月" % month)
+            spec.labels.append(month_text)
             continue
         for day in days:
             point = _clamp_day(year, month, day)
             windows.append((point.isoformat(), point.isoformat()))
-            spec.labels.append("%d月%d日" % (month, day))
+            spec.labels.append("%s%d日" % (month_text, day))
     return windows
 
 
