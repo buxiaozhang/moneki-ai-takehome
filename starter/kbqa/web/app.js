@@ -156,13 +156,17 @@ function addUserMessage(text) {
   scrollMessages();
 }
 
+/** 超过这个长度才给折叠按钮：短回答折叠反而多余。 */
+const COLLAPSE_MIN_CHARS = 180;
+
 function addAIMessage() {
   const wrap = document.createElement('div');
   wrap.className = 'msg msg-ai';
   wrap.innerHTML = `
     <div class="bubble streaming"></div>
     <div class="msg-meta"></div>
-    <div class="extras"></div>`;
+    <div class="extras"></div>
+    <div class="msg-foot"><button type="button" class="msg-toggle" hidden></button></div>`;
   $('messages').appendChild(wrap);
   scrollMessages();
   return wrap;
@@ -178,6 +182,27 @@ function renderAnswer(wrap, payload) {
   const bubble = wrap.querySelector('.bubble');
   bubble.classList.remove('streaming');
   bubble.textContent = payload.answer || '（空回答）';
+
+  // 回答长就给个折叠按钮。追问几轮之后左栏会堆得很长，
+  // 折叠能把前面几条收起来，只留标题行，滚动距离一下就短了。
+  const toggle = wrap.querySelector('.msg-toggle');
+  if (toggle) {
+    const long = (payload.answer || '').length >= COLLAPSE_MIN_CHARS;
+    toggle.hidden = !long;
+    if (!long) {
+      wrap.classList.remove('collapsed');
+    }
+    // 用 onclick 而不是 addEventListener：renderAnswer 可能对同一条消息跑两次
+    //（流式结束时一次、回放时再一次），addEventListener 会叠加成多个监听器。
+    toggle.onclick = () => {
+      wrap.classList.toggle('collapsed');
+      const folded = wrap.classList.contains('collapsed');
+      toggle.textContent = folded ? '展开' : '收起';
+      toggle.setAttribute('aria-expanded', String(!folded));
+    };
+    toggle.textContent = wrap.classList.contains('collapsed') ? '展开' : '收起';
+    toggle.setAttribute('aria-expanded', String(!wrap.classList.contains('collapsed')));
+  }
 
   const meta = wrap.querySelector('.msg-meta');
   meta.innerHTML = '';

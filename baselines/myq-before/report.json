@@ -1,0 +1,553 @@
+{
+  "generated_at": "2026-09-27 17:43:28",
+  "base_url": "http://localhost:8017",
+  "questions_file": "D:\\评测作业\\moneki-ai-takehome\\eval\\my_questions.jsonl",
+  "kb_dir": "D:\\评测作业\\moneki-ai-takehome\\knowledge_base",
+  "kb_docs_loaded": 35,
+  "timeout": 180.0,
+  "only": null,
+  "total": {
+    "points": 14.0,
+    "earned": 6.0,
+    "ratio": 0.4286,
+    "questions": 7,
+    "passed": 3
+  },
+  "per_category": {
+    "data": {
+      "points": 6.0,
+      "earned": 4.0,
+      "questions": 3,
+      "passed": 2,
+      "ratio": 0.6667
+    },
+    "doc": {
+      "points": 4.0,
+      "earned": 2.0,
+      "questions": 2,
+      "passed": 1,
+      "ratio": 0.5
+    },
+    "refusal": {
+      "points": 4.0,
+      "earned": 0.0,
+      "questions": 2,
+      "passed": 0,
+      "ratio": 0.0
+    }
+  },
+  "latency_seconds": {
+    "median": 4.125,
+    "max": 4.14,
+    "total": 28.828
+  },
+  "health": {
+    "status": "ok",
+    "llm_mode": "mock",
+    "llm": {
+      "mode": "mock",
+      "missing": [
+        "LLM_BASE_URL",
+        "LLM_API_KEY",
+        "LLM_MODEL"
+      ],
+      "base_url": null,
+      "model": null,
+      "api_key_set": false,
+      "dotenv": null,
+      "hint": "缺少 LLM_BASE_URL、LLM_API_KEY、LLM_MODEL，当前走模板作答。在作业包根目录放一份 .env（参考 starter/.env.example），或先设好这三个环境变量再启动服务；配置只在启动时读一次，改完要重启。"
+    },
+    "kb_docs": 35,
+    "kb_chunks": 148,
+    "valid_sales_rows": 18290,
+    "today": "2026-09-01",
+    "data_period": {
+      "start": "2026-05-01",
+      "end": "2026-08-31"
+    },
+    "cleaning_report": {
+      "raw_rows": 18628,
+      "removed": {
+        "1_unparseable_date": 8,
+        "2_empty_amount": 150,
+        "3_qty_le_zero": 30,
+        "4_store_not_in_stores": 10,
+        "5_product_not_in_products": 40,
+        "6_duplicate_row": 100,
+        "note_unparseable_amount": 0
+      },
+      "kept_rows": 18290,
+      "kept_sales_rows": 18196,
+      "kept_refund_rows": 94
+    },
+    "index_key": "d2d97bd9f1e3",
+    "kb_warnings": [
+      "按 GB18030 解码（非 UTF-8）：KB-062_旧OA导出_营业时间调整通知.txt",
+      "跳过没有 KB 编号的文件：README.md"
+    ]
+  },
+  "health_error": null,
+  "metrics_baselines": {},
+  "metrics_baseline_errors": {},
+  "kb_errors": [],
+  "questions": [
+    {
+      "id": "X01",
+      "category": "data",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 4.14,
+      "turns": [
+        {
+          "question": "三文鱼销量怎么样？",
+          "passed": false,
+          "latency_seconds": 4.14,
+          "answer_type": "clarify",
+          "citations": [],
+          "trace_id": "t-20260901-0001",
+          "answer": "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "data"
+              ],
+              "actual": "clarify",
+              "reason": "answer_type 应是 data 之一"
+            },
+            {
+              "name": "numbers_all",
+              "passed": false,
+              "expected": [
+                1567
+              ],
+              "actual": [],
+              "reason": "回答里没有出现 1567"
+            },
+            {
+              "name": "numbers_none",
+              "passed": true
+            },
+            {
+              "name": "text_any",
+              "passed": false,
+              "expected": [
+                "三文鱼poke"
+              ],
+              "actual": "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。",
+              "reason": "回答里一个期望说法都没有"
+            },
+            {
+              "name": "evidence_required",
+              "passed": false,
+              "expected": "非空的 data_evidence",
+              "actual": [],
+              "reason": "回答里的数字没有给出对应的数据库查询"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X02",
+      "category": "refusal",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 4.125,
+      "turns": [
+        {
+          "question": "谁家的三文鱼最好吃",
+          "passed": false,
+          "latency_seconds": 4.125,
+          "answer_type": "doc",
+          "citations": [
+            "KB-021",
+            "KB-031"
+          ],
+          "trace_id": "t-20260901-0002",
+          "answer": "# 三文鱼poke 临时停售通知\n发布部门：总部供应链部 / 运营部\n发布日期：2026-07-05\n本批次三文鱼到货质检不合格，原料已全部拒收，短期内无法补货。现决定：\n1. **全部门店自 2026-07-06 起临时停售三文鱼poke，停售至 2026-07-12**，7 月 13 日供货恢复后即可恢复销售。\n2. 五家门店（S01 至 S05）当晚在 POS 与外卖平台同步下架三文鱼poke，避免顾客下单后无法出餐；门口和收银台各放一张告知牌。\n3. **向顾客推荐替代品鸡肉poke**，口味和分量最接近，米饭与配菜做法不变；顾客不接受替代的，按正常流程处理，不强推。\n4. 门店现有三文鱼库存已全部封存，不得继续出品，也不得用于员工餐。\n5. 停售期间鸡肉poke 的备货量按平时的 1.5 倍准备，S02 按 2 倍准备；估计不够的，提前一天报供应链部补货。\n6. 顾客询问时统一口径：到货质检不合格，不合格的原料我们不会做给顾客，是主动下架。不展开谈技术细节，不评价供应商。\n质检不合格的具体情况与供应商的处理结果，详见供应商邮件 KB-022，由供应链部对接，门店不对外解释。\n恢复销售前一天，运营部会另发一条恢复通知，门店收到后再上架。\nKB-021《三文鱼poke 临时停售通知》（2026-07-06 起生效）：1. **全部门店自 2026-07-06 起临时停售三文鱼poke，停售至 2026-07-12**，7 月 13 日供货恢复后即可恢复销售。\nKB-031《门店档案 S02 Makai Poke》（2026-01-01 起生效）：- 五家店里唯一一家全天都能做波奇饭三个口味的门店，也是活动最常落地的试点店。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "refusal"
+              ],
+              "actual": "doc",
+              "reason": "answer_type 应是 refusal 之一"
+            },
+            {
+              "name": "cite_max",
+              "passed": false,
+              "expected": 0,
+              "actual": [
+                "KB-021",
+                "KB-031"
+              ],
+              "reason": "引用了 2 份文档，最多允许 0 份"
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X03",
+      "category": "refusal",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 4.125,
+      "turns": [
+        {
+          "question": "适不适合外出？",
+          "passed": false,
+          "latency_seconds": 4.125,
+          "answer_type": "doc",
+          "citations": [
+            "KB-001"
+          ],
+          "trace_id": "t-20260901-0003",
+          "answer": "# 指标口径手册 v3\n适用范围：总部运营部、财务部、各门店店长，以及所有基于 POS 导出数据出具的经营报表与对外口径。\n本手册自 2026-05-01 起生效，取代 v2（KB-002）。此前的模板、表格、月报里凡与本手册不一致的算法，一律以本手册为准。\n## 1. 数据来源\n经营数字的唯一来源是 POS 每日导出的销售明细表 `sales`，配合门店维表 `stores` 与商品维表 `products`。\n`sales` 的字段为：`order_id`、`date`、`store_id`、`product_id`、`qty`、`amount`、`payment`。\n导出文件不做任何人工修改，所有清洗动作都写在本手册里由系统统一执行，门店和总部都不得先改数再报数。\n## 2. 规范化\n在做任何筛选和汇总之前，先按下面四条把字段规范化。\n1. `store_id`、`product_id`：去掉首尾空白，并转为大写。`s01`、`S01 `、` s03` 这类写法规范化之后都是合法的编号，不要当成脏数据扔掉。\n2. `date`：接受三种格式，`YYYY-MM-DD`、`YYYY/M/D`、`DD-MM-YYYY`。\n   第三种是旧 POS 的导出格式，**日在前、月在后**：`25-07-2026` 是 2026 年 7 月 25 日，`07-06-2026` 是 2026 年\nKB-001《指标口径手册 v3》（2026-05-01 起生效）：适用范围：总部运营部、财务部、各门店店长，以及所有基于 POS 导出数据出具的经营报表与对外口径。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "refusal"
+              ],
+              "actual": "doc",
+              "reason": "answer_type 应是 refusal 之一"
+            },
+            {
+              "name": "cite_max",
+              "passed": false,
+              "expected": 0,
+              "actual": [
+                "KB-001"
+              ],
+              "reason": "引用了 1 份文档，最多允许 0 份"
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X04",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 0.0,
+      "passed": false,
+      "latency_seconds": 4.11,
+      "turns": [
+        {
+          "question": "三文鱼怎么样？",
+          "passed": false,
+          "latency_seconds": 4.11,
+          "answer_type": "clarify",
+          "citations": [],
+          "trace_id": "t-20260901-0004",
+          "answer": "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": false,
+              "expected": [
+                "doc",
+                "hybrid"
+              ],
+              "actual": "clarify",
+              "reason": "answer_type 应是 doc/hybrid 之一"
+            },
+            {
+              "name": "text_any",
+              "passed": false,
+              "expected": [
+                "停售"
+              ],
+              "actual": "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。",
+              "reason": "回答里一个期望说法都没有"
+            },
+            {
+              "name": "cite_any",
+              "passed": false,
+              "expected": [
+                "KB-021"
+              ],
+              "actual": [],
+              "reason": "一个期望的文档都没有引用"
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X05",
+      "category": "doc",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 4.14,
+      "turns": [
+        {
+          "question": "这个活动适不适合在 S02 做？",
+          "passed": true,
+          "latency_seconds": 4.14,
+          "answer_type": "doc",
+          "citations": [
+            "KB-031",
+            "KB-023"
+          ],
+          "trace_id": "t-20260901-0005",
+          "answer": "# 门店档案：S02 Makai Poke\n| 项目 | 内容 |\n|---|---|\n| 门店编号 | S02 |\n| 门店名称 | Makai Poke |\n| 品类 | 轻食 |\n| 商圈 | 上海·静安 |\n| 地址 | 上海市静安区康定路 555 号 B1 层 12 号铺 |\n| 店长 | 谭可欣 |\n| 联系电话 | 021-5555-0102 |\n| 标准营业时间 | 10:00–21:00 |\n| 座位数 | 28 |\n| 开业日期 | 2022-05-20 |\n## 特色\n以波奇饭为主力的轻食店，三文鱼poke、鸡肉poke、牛肉poke 是三个主推，配菜可以自选两样。\n客群以周边办公楼的白领为主，午市外带比例高，晚市偏安静，周末客流明显下降。\n店面在地下一层，紧邻地铁通道口，动线短、翻台快，但后厨面积小，冷柜容量有限，备货只能做到当天量，隔天的鲜货一律不留。\n出餐台和打包台是分开的，外带单从侧口取，堂食顾客不用和外卖骑手挤在一起。\n## 备注\n- 常用简称：Makai，别名对照见 KB-003。\n- 座位以两人卡座为主，无包间，不接待 10 人以上团餐。\n- 五家店里唯一一家全天都能做波奇饭三个口味的门店，也是活动最常落地的试点店。\n- 营业时间如有临时调整，以最新通知为准。\nKB-031《门店档案 S02 Makai Poke》（2026-01-01 起生效）：- 五家店里唯一一家全天都能做波奇饭三个口味的门店，也是活动最常落地的试点店。\nKB-023《2026 年 618 活动方案》（2026-06-18 起生效）：**2026 年 6 月 18 日当天，仅限 Makai Poke（S02，上海·静安）一家门店**，营业时间内有效，不延长、不顺延，其余四家门店照常营",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "cite_any",
+              "passed": true
+            },
+            {
+              "name": "quotes_verbatim",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X06",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 4.094,
+      "turns": [
+        {
+          "question": "包包店七月营业额是多少？",
+          "passed": true,
+          "latency_seconds": 4.094,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0006",
+          "answer": "2026 年 7 月（S03 Juicy Bao Bao）：净营业额 29821.00 元，有效订单数 894 单，客单价 33.36 元，销量 1378 件，退款金额 67.00 元。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "text_any",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "X07",
+      "category": "data",
+      "points": 2.0,
+      "earned": 2.0,
+      "passed": true,
+      "latency_seconds": 4.094,
+      "turns": [
+        {
+          "question": "JBB 六月卖了多少钱？",
+          "passed": true,
+          "latency_seconds": 4.094,
+          "answer_type": "data",
+          "citations": [],
+          "trace_id": "t-20260901-0007",
+          "answer": "2026 年 6 月（S03 Juicy Bao Bao）：净营业额 23967.00 元，有效订单数 761 单，客单价 31.49 元，销量 1114 件，退款金额 92.00 元。",
+          "checks": [
+            {
+              "name": "schema",
+              "passed": true
+            },
+            {
+              "name": "answer_length",
+              "passed": true
+            },
+            {
+              "name": "number_flood",
+              "passed": true
+            },
+            {
+              "name": "citation_hygiene",
+              "passed": true
+            },
+            {
+              "name": "evidence_hygiene",
+              "passed": true
+            },
+            {
+              "name": "answer_type_in",
+              "passed": true
+            },
+            {
+              "name": "numbers_all",
+              "passed": true
+            },
+            {
+              "name": "text_any",
+              "passed": true
+            },
+            {
+              "name": "evidence_required",
+              "passed": true
+            },
+            {
+              "name": "trace_required",
+              "passed": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

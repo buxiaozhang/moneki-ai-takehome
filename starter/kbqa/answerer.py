@@ -330,30 +330,29 @@ class Answerer(HybridAnswers):
     # -- 纯文档 -----------------------------------------------------------------
 
     def _context(self, result: SearchResult) -> str:
-        """把命中的那篇文档原样拼进来，答案就在里面，别漏了。
+        """把**命中的那一段**原文补进来，答案就在里面，别漏了。
 
         `_doc_block` 负责挑出"能读的那句话"，这里补的是它可能漏掉的上下文。
-        但原文可能很长（KB-061 是整页 HTML、KB-001 是整本手册），**必须封顶**：
-        不封顶时答案会被原文淹没，运营读不下去，也超过交付上限。
-        上限按"给 body 至少留一半"来算，保证引用句不会被挤掉。
+
+        只补**命中片段**，不要整篇拼进来。以前是把 top-1 文档的**所有** chunk 拼进来，
+        于是问「会员的优惠」时命中了 KB-061（整页 FAQ），回答开头就是 600 字与问题
+        无关的 FAQ 正文（发票、宠物、Wi-Fi…），真正的答案被淹掉。
+        命中片段里已经有回答问题的那段原文，够用了。`citations` 里的 `quote`
+        仍然是逐字原文，可核对性不受影响。
         """
         blocks: list[str] = []
         used = 0
         budget = max(0, MAX_ANSWER_CHARS // 2)
         for hit in result.hits[:1]:
-            for chunk in self.retriever.index.chunks_of(hit.doc_id):
-                # HTML 文档按标签切行会留下成堆的 <meta>/<link>，先压掉空白行。
-                text = "\n".join(line for line in chunk.text.splitlines() if line.strip())
-                if not text:
-                    continue
-                if used + len(text) > budget:
-                    blocks.append(text[: max(0, budget - used)])
-                    used = budget
-                    break
-                blocks.append(text)
-                used += len(text)
-            if used >= budget:
+            # HTML 文档按标签切行会留下成堆的 <meta>/<link>，先压掉空白行。
+            text = "\n".join(line for line in (hit.text or "").splitlines() if line.strip())
+            if not text:
+                continue
+            if used + len(text) > budget:
+                blocks.append(text[: max(0, budget - used)])
                 break
+            blocks.append(text)
+            used += len(text)
         return ("\n".join(blocks) + "\n") if blocks else ""
 
     def _should_refuse(self, plan: Plan, confidence: float, top_score: float) -> Optional[str]:

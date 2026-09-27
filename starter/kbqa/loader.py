@@ -12,7 +12,9 @@ from typing import Optional
 SUPPORTED_SUFFIXES = {".md", ".markdown", ".txt", ".html"}
 #: 解析行为变了就要改这个号，否则磁盘上的旧索引不会失效 ——
 #: 缓存键算的是"文件字节 + 各版本号"，同一份字节用不同的解码方式读出来是不同的语料。
-LOADER_VERSION = "loader-3"
+#: loader-4：HTML 去掉 nav/header/footer 站点样板（KB-061 的导航里有"会员"，
+#: 不丢掉会让「会员的优惠」检索到 FAQ 而不是《会员储值政策》）。
+LOADER_VERSION = "loader-4"
 
 #: 文件名开头的编号就是 doc_id，与文件格式无关（契约 §0）。
 _DOC_ID = re.compile(r"^(KB-\d+)")
@@ -81,6 +83,13 @@ class Document:
 
 _HTML_TITLE = re.compile(r"<title>(.*?)</title>", re.S | re.I)
 _SCRIPT_STYLE = re.compile(r"<(script|style)\b.*?</\1>", re.S | re.I)
+#: 站点样板：导航、页头、页脚。这些是页面外壳，不是文档内容。
+#: KB-061 是整页 HTML，导航里就有「会员」两个字 —— 索引进去之后，
+#: 问「会员的优惠」会因为导航命中「会员」+ 正文命中「优惠」而排到第一，
+#: 把真正的《会员储值政策》(KB-011) 挤下去。所以整块丢掉。
+_HTML_CHROME = re.compile(
+    r"<(nav|header|footer)\b.*?</\1>", re.S | re.I,
+)
 _HTML_TAG = re.compile(r"<[a-zA-Z/!][^>]*>")
 _TAG_AS_SEPARATOR = re.compile(r"</(p|div|li|tr|h[1-6]|section|article|table)\s*>", re.I)
 
@@ -91,8 +100,13 @@ def html_to_text(text: str) -> str:
     与评测 `run_eval.py` 的 `html_to_text` 保持一致的思路：去掉 script/style，
     标签换成空白，再解转义实体（`&nbsp;` 之类）。
     块级标签的结束位置换成换行，免得 `<p>甲</p><p>乙</p>` 粘成“甲乙”。
+
+    额外多做一步：把 nav/header/footer 这类**站点样板**整块去掉。
+    评测的版本不去（它只关心正文能不能对上引用），但我们建索引时不去，
+    导航文字就会参与检索并抢走本该属于正文文档的排名。
     """
     text = _SCRIPT_STYLE.sub(" ", text)
+    text = _HTML_CHROME.sub(" ", text)
     text = _TAG_AS_SEPARATOR.sub("\n", text)
     text = _HTML_TAG.sub(" ", text)
     text = html_module.unescape(text)

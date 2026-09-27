@@ -77,14 +77,33 @@ class Planner:
         #: 给一句话“探个底”：返回（词表覆盖率，检索最高分）。越界判断要靠它。
         self.scout = scout or (lambda text: (1.0, 100.0))
 
+    def _carries_topic(self, text: str) -> bool:
+        """这句话自己点到主题了吗（门店 / 商品 / 指标 / 业务词 / 别名）。
+
+        用来区分「没有上文的追问」和「只是写得短的正经问题」：
+        `那 7 月呢？` 什么都没点到，需要补上文；
+        `三文鱼怎么样？` 点到了商品，`S03 呢？` 点到了门店，都可以直接答。
+        """
+        if E.find_metric(text) or E.has_any(text, E.BUSINESS_WORDS):
+            return True
+        if self.catalog is None:
+            return False
+        if self.catalog.find_store(text)[0] or self.catalog.find_product(text)[0]:
+            return True
+        aliases = self.catalog.aliases
+        return bool(aliases and aliases.mentions(text))
+
     def plan(self, question: str, history: Optional[list[dict]] = None) -> Plan:
         standalone, inherited = self.followups.resolve(question, history or [])
         plan = Plan(question=question, standalone=standalone, search_query=standalone)
         history = history or []
         if not history and E.looks_like_follow_up(question) and len(question.strip()) <= 12:
-            plan.intent, plan.kind = "clarify", "need_context"
-            plan.refusal = "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。"
-            return plan
+            # 但"自带主题"的短句不算。以前只看长度 + 结尾词，
+            # 只有真的什么都没点到（「那 7 月呢？」）才需要请用户补上文。
+            if not self._carries_topic(standalone):
+                plan.intent, plan.kind = "clarify", "need_context"
+                plan.refusal = "这句像是追问，但这个会话里没有上文。请把问题补完整，例如“7 月的净营业额是多少”。"
+                return plan
         if standalone != question:
             plan.notes.append("这是一句追问，已按上一轮补全为：%s" % standalone)
 

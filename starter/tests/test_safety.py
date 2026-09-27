@@ -165,3 +165,49 @@ def test_normal_questions_are_not_misrouted(service, question):
     """
     plan = service.planner.plan(question)
     assert plan.intent != "refusal", "%s 被误判为拒答（kind=%s）" % (question, plan.kind)
+
+
+# -- 问的是系统无从观察的事 -------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "适不适合外出？",
+        "今天适不适合外出？",
+        "今天要不要带伞？",
+        "明天冷不冷？",
+    ],
+)
+def test_outside_activity_questions_are_refused(safe_client, question):
+    """「适不适合外出？」这类要拒答。
+
+    实测它检索最高分 4.5、**覆盖率 1.00** —— 覆盖率是按单字算的，
+    中文里「不/合/外/出」到处都是，所以拦不住；闸门过后又没命中天气词，
+    于是一路答下来，把《指标口径手册》当答案吐了出去。
+
+    必须用 `safe_client`：conftest 把检索换成了固定 42 分的假实现，
+    那样语料闸门永远通过，根本走不到这一步。
+    """
+    body = safe_client.post(
+        "/api/chat", json={"question": question, "session_id": "outside"}
+    ).json()
+    assert body.get("answer_type") == "refusal", "%s -> %s" % (
+        question,
+        body.get("answer_type"),
+    )
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        # 带「适不适合」但是正经业务问题，不能被上面那条误伤
+        "这个活动适不适合在 S02 做？",
+        "冷萃乌龙茶适不适合做外卖？",
+    ],
+)
+def test_business_questions_with_similar_wording_still_answer(safe_client, question):
+    body = safe_client.post(
+        "/api/chat", json={"question": question, "session_id": "similar"}
+    ).json()
+    assert body.get("answer_type") != "refusal", "%s 被误判为拒答" % question

@@ -109,6 +109,25 @@ main { padding: 16px; }
 @keyframes blink { 50% { opacity: 0; } }
 
 .msg-meta { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* ---------- 消息折叠 ----------
+   追问几轮之后左栏会很长。折叠只留开头两行，引用与数据证据一起藏起来，
+   滚动距离立刻变短；按钮留在外面，折起来也点得到。 */
+.msg-foot { margin-top: 4px; }
+.msg-toggle {
+  font-size: 11px; padding: 1px 8px; border-radius: 20px; cursor: pointer;
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  font-family: inherit;
+}
+.msg-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.msg-ai.collapsed .bubble {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.msg-ai.collapsed .msg-meta,
+.msg-ai.collapsed .extras { display: none; }
 .badge {
   font-size: 11px; padding: 2px 7px; border-radius: 20px;
   border: 1px solid var(--line); color: var(--muted); font-family: var(--mono);

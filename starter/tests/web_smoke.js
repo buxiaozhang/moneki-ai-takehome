@@ -308,6 +308,28 @@ async function caseStreaming(fixturePath) {
   check('耗时构成已出现', doc.getElementById('trace-summary').hidden === false);
   check('trace_id 已显示', doc.getElementById('trace-id-label').textContent === 't-live-1');
   check('发送按钮已恢复', doc.getElementById('send').disabled === false);
+
+  // 追问几轮后左栏会堆得很长，所以长回答必须能折叠。
+  // （jsdom 不做布局，这里验的是折叠逻辑：类切换 + 按钮文案 + 状态自洽。）
+  const ai = doc.querySelector('.msg-ai');
+  const toggle = ai.querySelector('.msg-toggle');
+  const answerLen = (ai.querySelector('.bubble').textContent || '').length;
+  if (answerLen >= 180) {
+    check('长回答有折叠按钮', !!toggle && toggle.hidden === false);
+    check('默认是展开的', ai.classList.contains('collapsed') === false
+      && toggle.textContent === '收起' && toggle.getAttribute('aria-expanded') === 'true');
+    toggle.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await sleep(30);
+    check('点击后折叠', ai.classList.contains('collapsed') === true);
+    check('折叠后按钮改叫展开', toggle.textContent === '展开'
+      && toggle.getAttribute('aria-expanded') === 'false');
+    toggle.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await sleep(30);
+    check('再点展开', ai.classList.contains('collapsed') === false && toggle.textContent === '收起');
+  } else {
+    check('短回答不给折叠按钮（夹具太短，跳过）', !!toggle && toggle.hidden === true, answerLen + ' 字');
+  }
+
   check('无未捕获错误', errors.length === 0, errors.join(' | '));
 }
 

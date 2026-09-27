@@ -1,0 +1,7 @@
+{"category": "data", "id": "X01", "points": 2, "turns": [{"question": "三文鱼销量怎么样？", "checks": {"answer_type_in": ["data"], "numbers_all": [{"tol": 0, "value": 1567}], "text_any": ["三文鱼poke"], "numbers_none": [{"tol": 0, "value": 27262}], "evidence_required": true}}]}
+{"category": "refusal", "id": "X02", "points": 2, "turns": [{"question": "谁家的三文鱼最好吃", "checks": {"answer_type_in": ["refusal"], "cite_max": 0}}]}
+{"category": "refusal", "id": "X03", "points": 2, "turns": [{"question": "适不适合外出？", "checks": {"answer_type_in": ["refusal"], "cite_max": 0}}]}
+{"category": "doc", "id": "X04", "points": 2, "turns": [{"question": "三文鱼怎么样？", "checks": {"answer_type_in": ["doc", "hybrid"], "cite_any": ["KB-021"], "text_any": ["停售"]}}]}
+{"category": "doc", "id": "X05", "points": 2, "turns": [{"question": "这个活动适不适合在 S02 做？", "checks": {"answer_type_in": ["doc", "hybrid"], "cite_any": ["KB-031", "KB-023"]}}]}
+{"category": "data", "id": "X06", "points": 2, "turns": [{"question": "包包店七月营业额是多少？", "checks": {"answer_type_in": ["data"], "numbers_all": [{"tol": 0, "value": 29821}], "text_any": ["S03"], "evidence_required": true}}]}
+{"category": "data", "id": "X07", "points": 2, "turns": [{"question": "JBB 六月卖了多少钱？", "checks": {"answer_type_in": ["data"], "numbers_all": [{"tol": 0, "value": 23967}], "text_any": ["S03"], "evidence_required": true}}]}

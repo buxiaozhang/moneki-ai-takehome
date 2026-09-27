@@ -30,7 +30,9 @@ Windows PowerShell 把 `.venv/bin/` 换成 `.venv\Scripts\`，命令里用 `.\` 
 提示：如果报错 "系统找不到指定的文件 ...\.venv\Scripts\python.exe"，请将命令复制到终端执行
 
 ```powershell
+cd starter
 python -m venv .venv; 
+.\.venv\Scripts\Activate.ps1
 .\.venv\Scripts\pip install -r requirements.txt
 .\.venv\Scripts\python -m kbqa.rebuild     # 等价于 make rebuild
 .\.venv\Scripts\python -m uvicorn kbqa.server:app --host 127.0.0.1 --port 8000
@@ -329,11 +331,16 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
 
 | 验证 | 命令 | 结果 |
 |---|---|---|
-| 单元/集成测试 | `cd starter && make test` | **217 passed** |
-| 前端 DOM 冒烟 | `make test-web` | **68 项全过**（缺 jsdom 自动跳过） |
-| 公开题库 · 无 Key 降级模式 | `python3 eval/run_eval.py ...` | **100.00 / 100.00，55/55** |
-| 公开题库 · 配 Key，`deepseek-flash` | 同上 | **100 / 100 / 96 / 100 / 100**（最近 5 次） |
+| 单元/集成测试 | `cd starter && make test` | **224 passed** |
+| 前端 DOM 冒烟 | `make test-web` | **73 项全过**（缺 jsdom 自动跳过） |
+| 公开题库 · 无 Key 降级模式 | `cd starter && make eval` | **100.00 / 100.00，55/55** |
+| **自建题集**（公开题库之外的补充题） | `cd starter && make eval-mine` | **14.00 / 14.00，7/7** |
+| 公开题库 · 配 Key，`deepseek-flash` | `make eval`（配好 `.env`） | **100 / 100 / 96 / 100 / 100**（最近 5 次） |
 | 大模型接入预检 | `python3 eval/llm_gateway.py preflight ...` | **14/14 通过**，见 `LLM_SETUP.md` §7 |
+
+`make eval` / `make eval-mine` 需要服务已经在跑（另开一个终端 `make run`）。
+自建题集是什么、为什么是那几题、以及它**在修复前确实是红的**（6/14 → 14/14），
+见 `eval/README_my_questions.md`。
 
 live 模式第一次实测只有 **73.50**：修掉四个真实缺陷（提示词会写出旧版本、
 工具调用不收敛就整题拒答、**内部异常被静默吞掉**、`run_sql` 写错表名炸掉整轮）
@@ -371,6 +378,20 @@ live 模式第一次实测只有 **73.50**：修掉四个真实缺陷（提示�
    截断后 `llm_calls[].prompt` 不再是合法 JSON。要看完整原文请用 `proxy` 模式的 JSONL。
 2. **检索靠词典，同义改写弱**。问法完全避开词表和别名词典时会退化到覆盖率兜底，
    可能给出 `refusal`。加文档和加别名能缓解，但没有向量召回那样的泛化能力。
+   **这个弱点是实打实付出过代价的**：公开题库 55 题全过之后，我拿口语去问，
+   连着问出四个答非所问（三文鱼销量回成全公司总额、谁家的三文鱼最好吃、
+   适不适合外出、三文鱼怎么样被当成"没有上文的追问"）。四条都修了，
+   并收进 `eval/my_questions.jsonl` 当回归防线 —— 但**机制本身仍脆**。
+   - **「会员」类问句目前答不对（未决）**。问「会员的优惠」会引用 FAQ 里
+     「平台上的活动和优惠由平台规则决定」那段（外卖平台优惠），而不是会员权益。
+     根因不是代码 bug，是词汇缺口：**KB-011《会员储值政策》全文没有「优惠」二字**
+     （写的是"单笔充值满 500 元，赠送 60 元"），而 FAQ 正文同时含「会员」和「优惠」，
+     按词命中必然偏向 FAQ。同理「会员储值能在外卖平台用吗？」也会答成支付占比。
+     两条路我列出来但还没选：**补 KB-003 别名词典**（把"会员优惠/会员权益"归到
+     "会员储值"名下，与 R04 补"三文鱼断供"是同一套机制），或者**不改知识库**
+     接受按字面命中。因为要动公司知识库文档，我没有擅自决定。
+     另外这类问题的字符级覆盖率是 **1.00** —— 中文按单字算，
+     「不/合/外/出」这种字在哪都命中，所以覆盖率这个信号对中文几乎不设防。
 3. **统计预警的阈值是固定值**（2σ、环比 50%、退款 5%）。不同量级的数据集需要调，
    参数在 `kbqa/insights.py` 里，接口也接受 `z` / `drop_ratio`。
 4. **流式输出不是逐 token 的**。`/api/chat/stream` 推的是每一步的进展（规划、检索、工具、

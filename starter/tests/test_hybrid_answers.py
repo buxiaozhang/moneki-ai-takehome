@@ -225,6 +225,32 @@ def test_normal_answer_is_not_flagged():
         assert not _TOOL_MARKUP.search(good), "误伤了正常文本：%r" % good
 
 
+# -- 口语化的商品名要认出来 -------------------------------------------------------
+
+
+def test_colloquial_product_name_resolves_to_the_product():
+    """「三文鱼销量怎么样」里的"三文鱼"必须认成 三文鱼poke。
+
+    严格别名匹配只认整词（`三文鱼poke`），认不出"说了一半"的写法；
+    不兜底的话商品就落成"全部"，于是**问三文鱼的销量、回了全公司总额** ——
+    数字本身没错，但答的不是被问的那件事，属于答非所问。
+    """
+    from kbqa.config import load_settings
+    from kbqa.service import Service
+
+    catalog = Service(load_settings()).planner.catalog
+    for question in ("三文鱼销量怎么样？", "三文鱼卖了多少钱？", "三文鱼客单价是多少？"):
+        product_id, unknown = catalog.find_product(question)
+        assert product_id == "P04", "%s 认成了 %s" % (question, product_id)
+        assert unknown is None
+
+    # 写全的名字照旧要认
+    assert catalog.find_product("牛肉poke 销量")[0] == "P06"
+    assert catalog.find_product("三文鱼poke 销量")[0] == "P04"
+    # 完全没提商品时不能瞎认
+    assert catalog.find_product("六月营业额是多少")[0] is None
+
+
 # -- data_evidence 不能"穷举数字" -------------------------------------------------
 
 
