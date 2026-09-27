@@ -639,6 +639,23 @@ function dashParams(extra) {
   return params;
 }
 
+/**
+ * 把筛选值翻成看得懂的一行字。
+ *
+ * 以前这里写成了 `$('d-store').value` —— 在反引号模板里 `$(` 不是插值，
+ * 于是页面上原样打印出 `$($('d-store').value || '全部门店')` 这串源码。
+ * 插值要写 `${...}`。顺带把裸 id 换成「id + 名字」，跟下拉框里的写法一致。
+ */
+function scopeLabel(kind, value) {
+  if (!value) return kind === 'store' ? '全部门店' : '全部商品';
+  const list = (state.catalog && state.catalog[kind === 'store' ? 'stores' : 'products']) || [];
+  const idKey = kind === 'store' ? 'store_id' : 'product_id';
+  const nameKey = kind === 'store' ? 'store_name' : 'product_name';
+  const hit = list.find((item) => item[idKey] === value);
+  const name = hit && hit[nameKey];
+  return name ? `${value} ${name}` : value;
+}
+
 async function loadDashboard(event) {
   if (event) event.preventDefault();
   destroyCharts();
@@ -649,8 +666,8 @@ async function loadDashboard(event) {
   state.dash = data;
 
   const scope = [
-    `$($('d-store').value || '全部门店')`,
-    `$($('d-product').value || '全部商品')`,
+    scopeLabel('store', $('d-store').value),
+    scopeLabel('product', $('d-product').value),
     `${data.start} ~ ${data.end}`,
   ].join(' · ');
   $('dash-meta').textContent = scope;
@@ -918,7 +935,7 @@ async function loadQuality() {
   ).join('') + '</div>';
 
   const removedTotal = Object.values(removed).reduce((sum, value) => sum + (value || 0), 0);
-  html += '<h4>剔除明细</h4><table><thead><tr><th>原因</th><th>行数</th></tr></thead><tbody>';
+  html += '<h4>剔除明细</h4><table><thead><tr><th>原因</th><th class="num">行数</th></tr></thead><tbody>';
   Object.entries(removed).forEach(([key, value]) => {
     html += `<tr${value ? '' : ' class="dim"'}><td>${esc(REMOVAL_LABELS[key] || key)}</td>
       <td class="num">${value || 0}</td></tr>`;

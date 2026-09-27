@@ -192,6 +192,9 @@ th, td {
 }
 th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
 td.num { text-align: right; font-family: var(--mono); }
+/* 数字列的表头也得右对齐：表头在左、数字在右，中间空一大截，
+   看起来就像这串数字属于它右边那一列。净营业额、订单数这些列尤其明显。 */
+th.num { text-align: right; }
 tr.dim { opacity: .5; }
 
 /* 数据质量 */

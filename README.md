@@ -304,6 +304,8 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
 ├── LLM_SETUP.md           大模型接入说明（契约 §7.4 骨架）
 ├── AI_USAGE.md            AI 工具使用说明
 ├── EVAL_REPORT.md         评测得分：改动前 17.00 → 改动后 100.00
+├── DEMO.md                一道混合问题的完整演示（含调试面板）
+├── DEMO.mp4                一道混合问题的完整视频演示（含调试面板）
 ├── DEBUG_LOG.md           31 条缺陷：现象/假设/验证/根因/修复/回归测试
 ├── docs/API_CONTRACT.md   必须遵守的 API 契约
 ├── data/                  POS 导出（pos.db + 同名 csv）
@@ -314,7 +316,7 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
     ├── kbqa/              服务代码（见上面架构图）
     │   ├── web/           前端：index.html · app.js · charts.js · styles.css
     │   └── insights.py    统计预警规则（纯函数）
-    ├── tests/             209 例 pytest + 前端 DOM 冒烟
+    ├── tests/             209 例 pytest 
     └── var/               清洗库与预检报告（不入库）
 ```
 
@@ -325,9 +327,14 @@ KB-001 v3 取代 KB-002 v2；KB-023 是 618 当天的活动方案，只在那一
 | 验证 | 命令 | 结果 |
 |---|---|---|
 | 单元/集成测试 | `cd starter && make test` | **209 passed** |
-| 前端 DOM 冒烟 | `make test-web` | **55 项全过**（缺 jsdom 自动跳过） |
-| 公开题库评测 | `python3 eval/run_eval.py ...` | **100.00 / 100.00，55/55** |
+| 前端 DOM 冒烟 | `make test-web` | **68 项全过**（缺 jsdom 自动跳过） |
+| 公开题库评测（无 Key 降级模式） | `python3 eval/run_eval.py ...` | **100.00 / 100.00，55/55** |
+| 公开题库评测（配 Key，`deepseek-flash`） | 同上 | **93.50 / 90.00**（两次实测） |
 | 大模型接入预检 | `python3 eval/llm_gateway.py preflight ...` | **14/14 通过**，见 `LLM_SETUP.md` §7 |
+
+注意 live 模式比降级模式**低 6–10 分** —— 这不是笔误。降级模式走确定性模板，
+措辞与引用完全可控；live 模式由模型决定引用与措辞，会零星触发判分规则。
+原因与已修的两处见 `EVAL_REPORT.md` 第 5 节。**切换模型后应按 90 上下预期。**
 
 评测逐轮提升（每轮报告都在 `baselines/`）：
 
