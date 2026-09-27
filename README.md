@@ -26,8 +26,8 @@ make run                     # http://localhost:8000
 ```
 
 Windows PowerShell 把 `.venv/bin/` 换成 `.venv\Scripts\`，命令里用 `.\` 前缀：
-# 提示：如果报错 "系统找不到指定的文件 ...\.venv\Scripts\python.exe"，
-# 请将命令复制到终端执行
+
+提示：如果报错 "系统找不到指定的文件 ...\.venv\Scripts\python.exe"，请将命令复制到终端执行
 
 ```powershell
 python -m venv .venv; 
