@@ -100,6 +100,26 @@ class Planner:
             )
             return plan
 
+        # 破坏性/越权请求：直接拒答，连数据库和知识库都不碰。
+        # 放在这里（追问还原之后、解析实体之前）是有意的 —— 这类请求往往带着
+        # 合法实体（“把 S01 的销售记录全删掉”），先解析反而会把它当普通问句处理。
+        if E.is_destructive(standalone):
+            plan.intent, plan.kind = "refusal", "destructive"
+            plan.notes.append("越权判断：问句包含对数据对象的写操作意图。")
+            plan.refusal = (
+                "我只能查询数据，不能修改或删除任何记录，所以这个请求我不能执行。"
+                "如果需要调整销售数据，请走数据管理流程。"
+            )
+            return plan
+        if E.is_prompt_probe(standalone):
+            plan.intent, plan.kind = "refusal", "prompt_probe"
+            plan.notes.append("越权判断：问句试图套取系统提示词或表结构。")
+            plan.refusal = (
+                "我不能提供系统提示词、内部规则或数据库表结构。"
+                "如果你需要某项经营数据，可以直接问我具体指标。"
+            )
+            return plan
+
         spec = parse_time(standalone, self.today)
         self.followups.inherit_time(plan, spec, question, inherited)
         plan.as_of = spec.as_of or self.today
